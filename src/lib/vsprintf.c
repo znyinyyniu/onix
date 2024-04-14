@@ -94,12 +94,15 @@ static char *number(char *str, u32 *num, int base, int size, int precision, int 
     {
         u32 ival = (u32)(*(double *)num);
         u32 fval = (u32)(((*(double *)num) - ival) * 1000000);
-        do
+
+        int mantissa = 6;
+        while (mantissa --)
         {
             index = (fval) % base;
             (fval) /= base;
             tmp[i++] = digits[index];
-        } while (fval);
+        }
+
         tmp[i++] = '.';
 
         do

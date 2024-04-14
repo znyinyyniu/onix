@@ -4,8 +4,8 @@
 
 int main(int argc, char const *argv[])
 {
-    double x = 3.0;
-
+    double x = 3.000325;
+    printf("x = %f\n", x);
     printf("sin(%f) = %f\n", x, sin(x));
     printf("cos(%f) = %f\n", x, cos(x));
     printf("tan(%f) = %f\n", x, tan(x));
