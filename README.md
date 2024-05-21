@@ -108,6 +108,7 @@ Commit Decription 前面加上 emoji ❤️ 提高阅读性：
 - gdb >= 12.1 [^gdb]
 - nasm >= 2.15.05 [^nasm]
 - binutils >= 2.38 [^binutils]
+- sfdisk >= 2.39.3
 - vmware >= 16.1 [^vmware]
 - vscode >= 1.74.3 [^vscode]
 - ffmpeg >= 6.0 [^ffmpeg]
