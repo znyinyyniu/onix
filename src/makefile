@@ -202,6 +202,7 @@ $(BUILD)/system.map: $(BUILD)/kernel.bin
 include utils/image.mk
 include utils/cdrom.mk
 include utils/net.mk
+include utils/usb.mk
 include utils/cmd.mk
 
 .PHONY: clean

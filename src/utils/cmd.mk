@@ -28,6 +28,8 @@ QEMU_DISK := -drive file=$(BUILD)/master.img,if=ide,index=0,media=disk,format=ra
 QEMU_DISK += -drive file=$(BUILD)/slave.img,if=ide,index=1,media=disk,format=raw # 从硬盘
 QEMU_DISK += -drive file=$(BUILD)/floppya.img,if=floppy,index=0,media=disk,format=raw # 软盘a
 
+QEMU_DISK += -usb -device usb-ehci,id=ehci -drive id=usbdisk,file=$(BUILD)/usb.img,format=raw,if=none -device usb-storage,drive=usbdisk,bus=ehci.0
+
 QEMU_DISK_BOOT:=-boot c
 
 QEMU_DEBUG:= -s -S
