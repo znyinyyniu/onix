@@ -6,6 +6,7 @@
 #include <onix/debug.h>
 #include <onix/list.h>
 #include <onix/arena.h>
+#include <onix/usb.h>
 
 #define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
@@ -22,6 +23,8 @@
     addr)
 
 static list_t pci_device_list;
+
+list_t usb_hcd_list;
 
 struct
 {
@@ -254,6 +257,12 @@ static void pci_check_device(u8 bus, u8 dev)
              device->bus, device->dev, device->func,
              device->vendorid, device->deviceid,
              pci_classname(device->classcode));
+
+        if(device->classcode == PCI_CLASS_SERIAL_USB_EHCI || device->classcode == PCI_CLASS_SERIAL_USB_UHCI){
+            usb_hcd *hcd = (usb_hcd *)kmalloc(sizeof(usb_hcd));
+            hcd->device = device;
+            list_push(&usb_hcd_list, &hcd->node);
+        }
     }
 }
 
@@ -320,5 +329,6 @@ static void pci_enum_device()
 void pci_init()
 {
     list_init(&pci_device_list);
+    list_init(&usb_hcd_list);
     pci_enum_device();
 }

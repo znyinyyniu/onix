@@ -123,6 +123,7 @@ $(BUILD)/kernel.raw.bin: \
 	$(BUILD)/kernel/ide.o \
 	$(BUILD)/kernel/serial.o \
 	$(BUILD)/kernel/pci.o \
+	$(BUILD)/kernel/usb.o \
 	$(BUILD)/kernel/memory.o \
 	$(BUILD)/kernel/arena.o \
 	$(BUILD)/kernel/keyboard.o \
