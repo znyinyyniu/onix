@@ -46,6 +46,9 @@ void put_free_inode(inode_t *inode)
 // 获取根 inode
 inode_t *get_root_inode()
 {
+    inode_t *inode = fs_root_inode();
+    if (inode)
+        return inode;
     return inode_table;
 }
 

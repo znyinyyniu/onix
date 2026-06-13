@@ -150,6 +150,7 @@ super_t *read_super(dev_t dev); // 读取 dev 对应的超级块
 void put_super(super_t *sb);
 
 inode_t *get_root_inode(); // 获取根目录 inode
+inode_t *fs_root_inode();  // 获取已挂载的根文件系统 inode
 void iput(inode_t *inode); // 释放 inode
 inode_t *find_inode(dev_t dev, idx_t nr);
 inode_t *fit_inode(inode_t *inode);

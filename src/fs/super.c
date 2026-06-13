@@ -137,3 +137,10 @@ void super_init()
 
     mount_root();
 }
+
+inode_t *fs_root_inode()
+{
+    if (root && root->iroot)
+        return root->iroot;
+    return NULL;
+}

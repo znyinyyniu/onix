@@ -1,3 +1,4 @@
+GRUB_PC_DIR:=/usr/lib/grub/i386-pc
 
 $(BUILD)/kernel.iso : \
 	$(BUILD)/kernel.bin \
@@ -6,6 +7,9 @@ $(BUILD)/kernel.iso : \
 	$(BUILD)/mono.wav \
 	$(BUILD)/stereo.wav \
 
+# grub-mkrescue 需要 PC/BIOS 模块才能生成 El Torito 光盘引导
+	test -f $(GRUB_PC_DIR)/boot.img || \
+		(echo "grub-pc-bin is required for bootable ISO (install: sudo apt install grub-pc-bin)" && false)
 # 检测内核文件是否合法
 	grub-file --is-x86-multiboot2 $<
 # 创建 iso 目录
@@ -16,6 +20,7 @@ $(BUILD)/kernel.iso : \
 	mkdir -p $(BUILD)/iso/bin
 # 创建 dev,mnt 目录
 	mkdir -p $(BUILD)/iso/dev
+	touch $(BUILD)/iso/dev/.keep
 	mkdir -p $(BUILD)/iso/data
 	mkdir -p $(BUILD)/iso/mnt
 # 拷贝应用程序
@@ -28,20 +33,21 @@ $(BUILD)/kernel.iso : \
 	cp $(SRC)/utils/grub.cfg $(BUILD)/iso/boot/grub
 # 生成 iso 文件
 	grub-mkrescue -o $@ $(BUILD)/iso
+	xorriso -indev $@ -report_el_torito as_mkisofs 2>&1 | grep -q 'El Torito' || \
+		(echo "ISO missing El Torito boot record; reinstall grub-pc-bin and rebuild" && false)
 	cp $@ $(BUILD)/onix_$(ONIX_VERSION).iso
 
 .PHONY: bochsb
 bochsb: $(BUILD)/kernel.iso
 	bochs -q -f ../bochs/bochsrc.grub -unlock
 
-QEMU_CDROM := -drive file=$(BUILD)/kernel.iso,media=cdrom,if=ide # 光盘镜像
+QEMU_CDROM := -drive file=$(BUILD)/kernel.iso,media=cdrom,if=ide,format=raw # 光盘镜像
 
 QEMU_CDROM_BOOT:= -boot d
 
 .PHONY: qemu-cd
 qemu-cd: $(BUILD)/kernel.iso $(IMAGES)
-	$(QEMU) $(QEMU_CDROM) $(QEMU_CDROM_BOOT) \
-	# $(QEMU_DEBUG)
+	$(QEMU) $(QEMU_CDROM) $(QEMU_CDROM_BOOT) 
 
 .PHONY: qemug-cd
 qemug-cd: $(BUILD)/kernel.iso $(IMAGES)
