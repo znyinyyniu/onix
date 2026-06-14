@@ -74,16 +74,11 @@ rollback:
 
 void dev_init()
 {
-    inode_t *dev_dir = namei("/dev");
-    if (!dev_dir)
+    stat_t statbuf;
+    if (stat("/dev", &statbuf) < 0)
     {
-        inode_t *root = get_root_inode();
-        if (root->type == FS_TYPE_ISO9660)
-            panic("missing /dev on CD root (rebuild ISO: make cdrom)");
         assert(mkdir("/dev", 0755) == EOK);
     }
-    else
-        iput(dev_dir);
 
     device_t *device = NULL;
 
