@@ -65,8 +65,8 @@ Onix 是 32 位（i386）教学操作系统，支持 multiboot2、Minix v1 根�
 QEMU 参考命令（实现时写入 `cmd.mk` / 文档）：
 
 ```bash
-# UEFI + U 盘镜像（需 ovmf）
-qemu-system-i386 -m 256M -bios /usr/share/OVMF/OVMF.fd \
+# UEFI + U 盘镜像（需 ovmf、qemu-system-x86_64）
+qemu-system-x86_64 -m 256M -bios /usr/share/OVMF/OVMF_CODE.fd \
   -drive file=build/onix_usb.img,format=raw,if=virtio \
   -serial stdio
 

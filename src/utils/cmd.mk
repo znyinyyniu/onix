@@ -51,12 +51,18 @@ vmdk: $(BUILD)/master.vmdk
 # UEFI U 盘启动（OVMF）
 OVMF:= /usr/share/OVMF/OVMF_CODE.fd
 
-QEMU_USB:= $(QEMU)
+# U 盘 UEFI 冒烟专用：x86_64 QEMU + OVMF（64 位固件），无网卡、无声卡，不依赖 tap0
+QEMU_USB_BASE:= qemu-system-x86_64 -m 256M
+QEMU_USB_BASE+= -rtc base=localtime
+QEMU_USB_BASE+= -chardev stdio,mux=on,id=com1
+QEMU_USB_BASE+= -serial chardev:com1
+
+QEMU_USB:= $(QEMU_USB_BASE)
 QEMU_USB+= -bios $(OVMF)
 QEMU_USB+= -drive file=$(BUILD)/onix_usb.img,format=raw,if=virtio
 QEMU_USB+= -boot order=c
 
-QEMU_USB_XHCI:= $(QEMU)
+QEMU_USB_XHCI:= $(QEMU_USB_BASE)
 QEMU_USB_XHCI+= -bios $(OVMF)
 QEMU_USB_XHCI+= -device qemu-xhci,id=xhci
 QEMU_USB_XHCI+= -device usb-storage,bus=xhci.0,drive=usb0

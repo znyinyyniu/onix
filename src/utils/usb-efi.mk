@@ -15,6 +15,8 @@ check-usb-host-deps:
 		 echo "请执行: sudo apt install grub-efi-amd64" && exit 1)
 	@command -v parted >/dev/null && command -v mkfs.vfat >/dev/null && command -v mkfs.minix >/dev/null || \
 		(echo "请执行: sudo apt install dosfstools parted minix" && exit 1)
+	@command -v qemu-system-x86_64 >/dev/null || \
+		(echo "缺少 qemu-system-x86_64，请执行: sudo apt install qemu-system-x86" && exit 1)
 	@echo "USB 镜像宿主依赖检查通过"
 
 $(BUILD)/onix_usb.img: $(BUILD)/kernel.bin \

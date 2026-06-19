@@ -10,7 +10,7 @@
 
 - [x] 2.1 在 `cmd.mk` 增加 `qemu-usb` 目标（OVMF + `onix_usb.img` + `-serial stdio`），文档化宿主依赖 `ovmf`
 - [x] 2.2 构建后在宿主检查镜像：GPT 分区类型、ESP 文件、`P2` Minix 可挂载且 `/bin` 存在
-- [ ] 2.3 QEMU + OVMF：出现 GRUB 菜单，multiboot2 成功加载内核（驱动完成前预期 `mount_root` panic）
+- [x] 2.3 QEMU + OVMF：出现 GRUB 菜单，multiboot2 成功加载内核（驱动完成前预期 `mount_root` panic）
 - [x] 2.4 可选：GRUB 启用串口输出；在 QEMU 中确认 multiboot2 mmap 路径正常
 
 ## 3. 实机验收：镜像与 UEFI 引导（Phase 1）
