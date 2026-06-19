@@ -142,7 +142,7 @@ static bool iso_match_name(char *name1, int len1, char *name2, int len2)
 
     while (len1--)
     {
-        if (toupper(*name1) != *name2)
+        if (toupper(*name1) != toupper(*name2))
             return false;
         name1++;
         name2++;

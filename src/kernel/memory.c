@@ -57,6 +57,24 @@ static u32 free_pages = 0;  // 空闲内存页数
 
 #define used_pages (total_pages - free_pages) // 已用页数
 
+// 统计从 1M 开始的可用内存。实体机 BIOS 常把整块 RAM 从 0 标为可用，
+// 若直接选最大区域会得到 base=0，与内核约定的 MEMORY_BASE 不一致。
+static void consider_region(u32 base, u32 size, u32 type)
+{
+    LOGK("Memory base 0x%p size 0x%p type %d\n", base, size, type);
+
+    if (type != ZONE_VALID)
+        return;
+
+    u32 end = base + size;
+    if (end <= MEMORY_BASE)
+        return;
+
+    u32 usable_size = end - MEMORY_BASE;
+    if (usable_size > memory_size)
+        memory_size = usable_size;
+}
+
 void memory_init(u32 magic, u32 addr)
 {
     u32 count = 0;
@@ -69,13 +87,7 @@ void memory_init(u32 magic, u32 addr)
 
         for (size_t i = 0; i < count; i++, ptr++)
         {
-            LOGK("Memory base 0x%p size 0x%p type %d\n",
-                 (u32)ptr->base, (u32)ptr->size, (u32)ptr->type);
-            if (ptr->type == ZONE_VALID && ptr->size > memory_size)
-            {
-                memory_base = (u32)ptr->base;
-                memory_size = (u32)ptr->size;
-            }
+            consider_region((u32)ptr->base, (u32)ptr->size, (u32)ptr->type);
         }
     }
     else if (magic == MULTIBOOT2_MAGIC)
@@ -96,14 +108,8 @@ void memory_init(u32 magic, u32 addr)
         multi_mmap_entry_t *entry = mtag->entries;
         while ((u32)entry < (u32)tag + tag->size)
         {
-            LOGK("Memory base 0x%p size 0x%p type %d\n",
-                 (u32)entry->addr, (u32)entry->len, (u32)entry->type);
             count++;
-            if (entry->type == ZONE_VALID && entry->len > memory_size)
-            {
-                memory_base = (u32)entry->addr;
-                memory_size = (u32)entry->len;
-            }
+            consider_region((u32)entry->addr, (u32)entry->len, (u32)entry->type);
             entry = (multi_mmap_entry_t *)((u32)entry + mtag->entry_size);
         }
     }
@@ -112,11 +118,13 @@ void memory_init(u32 magic, u32 addr)
         panic("Memory init magic unknown 0x%p\n", magic);
     }
 
+    memory_base = MEMORY_BASE;
+
     LOGK("ARDS count %d\n", count);
     LOGK("Memory base 0x%p\n", (u32)memory_base);
     LOGK("Memory size 0x%p\n", (u32)memory_size);
 
-    assert(memory_base == MEMORY_BASE); // 内存开始的位置为 1M
+    assert(memory_size > 0);
     assert((memory_size & 0xfff) == 0); // 要求按页对齐
 
     total_pages = IDX(memory_size) + IDX(MEMORY_BASE);
