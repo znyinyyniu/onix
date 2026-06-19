@@ -10,6 +10,9 @@
 #include <onix/syscall.h>
 #include <onix/fs.h>
 #include <onix/printk.h>
+#ifdef ONIX_USB_BOOT
+#include <onix/fbcon.h>
+#endif
 
 #define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 // #define LOGK(fmt, args...)
@@ -98,19 +101,25 @@ void memory_init(u32 magic, u32 addr)
         LOGK("Announced mbi size 0x%x\n", size);
         while (tag->type != MULTIBOOT_TAG_TYPE_END)
         {
+#ifdef ONIX_USB_BOOT
+            if (tag->type == MULTIBOOT_TAG_TYPE_FRAMEBUFFER)
+            {
+                multi_tag_framebuffer_t *fb = (multi_tag_framebuffer_t *)tag;
+                fbcon_parse(fb);
+            }
+#endif
             if (tag->type == MULTIBOOT_TAG_TYPE_MMAP)
-                break;
-            // 下一个 tag 对齐到了 8 字节
+            {
+                multi_tag_mmap_t *mtag = (multi_tag_mmap_t *)tag;
+                multi_mmap_entry_t *entry = mtag->entries;
+                while ((u32)entry < (u32)tag + tag->size)
+                {
+                    count++;
+                    consider_region((u32)entry->addr, (u32)entry->len, (u32)entry->type);
+                    entry = (multi_mmap_entry_t *)((u32)entry + mtag->entry_size);
+                }
+            }
             tag = (multi_tag_t *)((u32)tag + ((tag->size + 7) & ~7));
-        }
-
-        multi_tag_mmap_t *mtag = (multi_tag_mmap_t *)tag;
-        multi_mmap_entry_t *entry = mtag->entries;
-        while ((u32)entry < (u32)tag + tag->size)
-        {
-            count++;
-            consider_region((u32)entry->addr, (u32)entry->len, (u32)entry->type);
-            entry = (multi_mmap_entry_t *)((u32)entry + mtag->entry_size);
         }
     }
     else
@@ -299,8 +308,13 @@ void mapping_init()
     // 设置 cr3 寄存器
     set_cr3((u32)pde);
 
-    // 分页有效
+    // 分页有效（fbcon_map 依赖 get_entry/0xfffff000，必须在分页开启后）
     enable_page();
+
+#ifdef ONIX_USB_BOOT
+    fbcon_map();
+    fbcon_activate();
+#endif
 }
 
 // 获取页目录
@@ -543,6 +557,30 @@ void map_page(u32 vaddr, u32 paddr)
     entry_init(entry, IDX(paddr));
     flush_tlb(vaddr);
 }
+
+#ifdef ONIX_USB_BOOT
+void map_mmio_range(u32 addr, u32 size)
+{
+    u32 start = addr & ~(PAGE_SIZE - 1);
+    u32 end = addr + size;
+
+    for (u32 v = start; v < end; v += PAGE_SIZE)
+    {
+        page_entry_t *entry = get_entry(v, true);
+        if (entry->present)
+            continue;
+
+        *(u32 *)entry = 0;
+        entry->present = 1;
+        entry->write = 1;
+        entry->pcd = 1;
+        entry->user = USER_MEMORY;
+        entry->index = IDX(v);
+        flush_tlb(v);
+    }
+    LOGK("MAP mmio 0x%p size 0x%X\n", addr, size);
+}
+#endif
 
 void map_area(u32 paddr, u32 size)
 {

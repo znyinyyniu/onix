@@ -85,6 +85,11 @@ void map_page(u32 vaddr, u32 paddr);
 // 映射物理内存区域
 void map_area(u32 paddr, u32 size);
 
+#ifdef ONIX_USB_BOOT
+// 映射 MMIO 区域（如 GOP framebuffer），虚拟地址等于物理地址
+void map_mmio_range(u32 addr, u32 size);
+#endif
+
 // 拷贝页目录
 page_entry_t *copy_pde();
 

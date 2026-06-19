@@ -83,7 +83,9 @@ void init_thread()
 #endif
     sb16_init();   // 初始化声霸卡
     floppy_init(); // 初始化软盘
+#ifndef ONIX_USB_BOOT
     e1000_init();  // 初始化 e1000 网卡
+#endif
 
     buffer_init(); // 初始化高速缓冲
     file_init();   // 初始化文件

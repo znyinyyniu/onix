@@ -2,6 +2,9 @@
 #include <onix/stdio.h>
 #include <onix/device.h>
 #include <onix/printk.h>
+#ifdef ONIX_USB_BOOT
+#include <onix/fbcon.h>
+#endif
 
 static char buf[1024];
 
@@ -12,6 +15,11 @@ extern void early_serial_write(const char *buf, int len);
 void kmsg_write(const char *buf, int len)
 {
     device_t *device;
+
+#ifdef ONIX_USB_BOOT
+    if (fbcon_ready())
+        fbcon_write(buf, len);
+#endif
 
     device = device_find(DEV_CONSOLE, 0);
     if (device)

@@ -51,7 +51,10 @@ sudo dd if=../build/onix_usb.img of=/dev/sdX bs=4M status=progress conv=fsync
 
 ## QEMU 冒烟
 
-`qemu-usb` / `qemu-usb-xhci` **不需要**配置 `tap0` 或执行 `make tap0`（与 `make qemu` 不同）。二者使用 **`qemu-system-x86_64`**（与 x86_64 OVMF、`BOOTX64.EFI` 匹配），256M 内存、**`-serial stdio -display none`**，无网卡/声卡。**请只看运行 make 的终端串口**，UEFI 下 QEMU 窗口通常没有内核日志。
+`qemu-usb` / `qemu-usb-xhci` **不需要**配置 `tap0` 或执行 `make tap0`（与 `make qemu` 不同）。二者使用 **`qemu-system-x86_64`**（与 x86_64 OVMF、`BOOTX64.EFI` 匹配），256M 内存、**`-vga std -serial stdio`**，无网卡/声卡。
+
+- **终端串口**：GRUB 与内核早期日志（含 `Onix: boot`）
+- **QEMU 窗口**：GRUB 菜单 + 内核帧缓冲日志（`memory_init` 之后，`fbcon` 解析 multiboot2 Framebuffer tag）
 
 ```sh
 make qemu-usb          # OVMF + virtio 磁盘（Phase 1 引导）
@@ -65,8 +68,6 @@ make USB_BOOT=1 ../build/kernel.bin
 make usb-patch-esp     # 需 mtools；或 make usb-image 全量重建
 make qemu-usb
 ```
-
-GRUB 与内核日志均走终端串口（`grub-uefi.cfg` 已配置 `terminal_output serial`）。倒计时结束后应看到 `Onix: boot` 及 `Memory base` 等日志。
 
 宿主 OVMF 固件路径为 `/usr/share/OVMF/OVMF_CODE.fd`。
 

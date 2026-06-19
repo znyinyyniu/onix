@@ -112,6 +112,8 @@ $(BUILD)/kernel.raw.bin: \
 	$(BUILD)/kernel/mio.o \
 	$(BUILD)/kernel/device.o \
 	$(BUILD)/kernel/console.o \
+	$(BUILD)/kernel/fbcon.o \
+	$(BUILD)/kernel/font8x8.o \
 	$(BUILD)/kernel/printk.o \
 	$(BUILD)/kernel/assert.o \
 	$(BUILD)/kernel/debug.o \
