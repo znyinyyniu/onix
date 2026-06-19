@@ -3,6 +3,8 @@ OVMF:= /usr/share/OVMF/OVMF_CODE.fd
 USB_LOOP:= $(shell sudo losetup --find 2>/dev/null)
 USB_ESP_MNT:= /tmp/onix-usb-esp
 USB_ROOT_MNT:= /tmp/onix-usb-root
+USB_IMG_SIZE:= 256M
+USB_ESP_END:= 33MiB
 
 .PHONY: check-usb-host-deps
 check-usb-host-deps:
@@ -33,14 +35,14 @@ $(BUILD)/onix_usb.img: $(BUILD)/kernel.bin \
 	grub-file --is-x86-multiboot2 $(BUILD)/kernel.bin
 
 	rm -f $@
-	truncate -s 1G $@
+	truncate -s $(USB_IMG_SIZE) $@
 	parted -s $@ mklabel gpt
-	parted -s $@ mkpart ESP fat32 1MiB 257MiB
+	parted -s $@ mkpart ESP fat32 1MiB $(USB_ESP_END)
 	parted -s $@ set 1 esp on
-	parted -s $@ mkpart primary 257MiB 100%
+	parted -s $@ mkpart primary $(USB_ESP_END) 100%
 
 	sudo losetup $(USB_LOOP) --partscan $@
-	sudo mkfs.vfat -F 32 -n ONIXESP $(USB_LOOP)p1
+	sudo mkfs.vfat -F 16 -n ONIXESP $(USB_LOOP)p1
 	sudo mkfs.minix -1 -n 14 $(USB_LOOP)p2
 
 	sudo mkdir -p $(USB_ESP_MNT)

@@ -22,6 +22,11 @@ sudo mkdir -p /tmp/onix-inspect-esp /tmp/onix-inspect-root
 sudo mount "${LOOP}p1" /tmp/onix-inspect-esp
 sudo mount "${LOOP}p2" /tmp/onix-inspect-root
 
+echo "=== ESP 文件系统 ==="
+fsck.vfat -n /tmp/onix-inspect-esp 2>&1 | grep -E 'FAT32|FAT16|clusters' || true
+fsck.vfat -n /tmp/onix-inspect-esp 2>&1 | grep -q 'less than the required minimum' && \
+	echo "错误: ESP 为不合规 FAT32（簇数不足），OVMF 无法引导。请用 mkfs.vfat -F 16 重建。" && exit 1
+
 echo "=== ESP ==="
 test -f /tmp/onix-inspect-esp/EFI/BOOT/BOOTX64.EFI
 test -f /tmp/onix-inspect-esp/boot/kernel.bin

@@ -4,8 +4,10 @@ Onix 支持从 U 盘以 UEFI 方式启动，镜像布局为 GPT 双分区：
 
 | 分区 | 类型 | 文件系统 | 内容 |
 |------|------|----------|------|
-| P1 | EFI System | FAT32 | GRUB (`BOOTX64.EFI`) + `kernel.bin` |
+| P1 | EFI System | FAT16 (~32MB) | GRUB (`BOOTX64.EFI`) + `kernel.bin` |
 | P2 | Linux | Minix v1 | 可写根文件系统 |
+
+整盘镜像约 **256MB**（`truncate -s 256M`）。
 
 ## 宿主依赖
 
@@ -87,6 +89,10 @@ qemu-system-x86_64 -m 256M -bios /usr/share/OVMF/OVMF_CODE.fd \
   -drive file=../build/onix_usb.img,format=raw,if=virtio -boot order=c \
   -serial stdio -monitor none
 ```
+
+**OVMF 报 `BdsDxe: failed to load ... UEFI Misc Device ... Not Found`，随后 PXE**
+
+32MB ESP 若格式化为 FAT32，簇数低于 FAT32 规范下限（65525），OVMF 无法挂载该分区。构建脚本已对 ESP 使用 `mkfs.vfat -F 16`。请重新 `make usb-image` 后再 `make qemu-usb`。
 
 **`grub-install` 对 loop 设备失败**
 

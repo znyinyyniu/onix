@@ -96,8 +96,10 @@ qemu-system-x86_64 -m 256M -bios /usr/share/OVMF/OVMF_CODE.fd \
 
 | 分区 | 类型 | 文件系统 | 用途 |
 |------|------|----------|------|
-| P1 | EFI System（`EF00`） | FAT32 ~256MB | GRUB + 内核 |
+| P1 | EFI System（`EF00`） | FAT16 ~32MB | GRUB + 内核 |
 | P2 | Linux（`8304`） | Minix v1 | 可写根（`/bin`、`/etc` 等） |
+
+整盘镜像默认 **256MB**（ESP 32MB + Minix 根分区）。
 
 **理由：** 符合 UEFI 常规做法；`grub-install --target=x86_64-efi --removable` 要求 GPT + ESP。Minix 根与 FAT ESP 分离。
 
@@ -197,6 +199,6 @@ qemu-system-x86_64 -m 256M -bios /usr/share/OVMF/OVMF_CODE.fd \
 ## 待决问题
 
 - 使用编译期 `ONIX_USB_BOOT` 还是运行时自动检测纯 USB 配置（v1 建议 `ONIX_USB_BOOT`，避免改变默认 IDE `mount_root` 行为）。
-- ESP 确切大小（默认 256MB；可在构建脚本中调整）。
+- ESP 确切大小（默认 32MB；整盘镜像 256MB；可在 `usb-efi.mk` 中调整 `USB_IMG_SIZE` / `USB_ESP_END`）。
 - `ONIX_USB_BOOT` 下是否完全跳过 `ide_init()`（次要启动时间优化）。
 - QEMU 启动时整盘 `onix_usb.img` 同时作为 virtio 磁盘与 `usb-storage` 后端是否足够，或需拆分镜像（实现 Phase 3 时确定）。

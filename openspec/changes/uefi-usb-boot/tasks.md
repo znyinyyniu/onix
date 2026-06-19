@@ -1,6 +1,6 @@
 ## 1. UEFI U 盘镜像构建
 
-- [x] 1.1 新增 `src/utils/usb-efi.mk`，创建 GPT 原始镜像（P1 EF00 FAT32 ~256MB，P2 8304 Minix）
+- [x] 1.1 新增 `src/utils/usb-efi.mk`，创建 GPT 原始镜像（整盘 256MB；P1 EF00 FAT32 ~32MB，P2 8304 Minix）
 - [x] 1.2 向 ESP 安装 GRUB x86_64-efi（`EFI/BOOT/BOOTX64.EFI`），并添加含 multiboot2 `/boot/kernel.bin` 的 `grub.cfg`
 - [x] 1.3 将 `kernel.bin` 复制到 ESP `/boot/`，填充 P2 Minix 根（复用 `image.mk` 布局：`/bin`、`/etc`、`/dev`、`/mnt` 及应用程序）
 - [x] 1.4 在 `src/makefile` 中接入 `usb-efi` / `usb-image` 目标，并文档化宿主依赖（`grub-efi-amd64`、`dosfstools`、`parted` 或 `sgdisk`）
@@ -15,7 +15,7 @@
 
 ## 3. 实机验收：镜像与 UEFI 引导（Phase 1）
 
-- [ ] 3.1 构建 `onix_usb.img` 并 `dd` 写入 U 盘
+- [x] 3.1 构建 `onix_usb.img` 并 `dd` 写入 U 盘
 - [ ] 3.2 在 i5-5200U 上从 USB 3.0 口验证 UEFI 启动：出现 GRUB 菜单并成功加载内核（驱动完成前预期 `mount_root` panic）
 - [ ] 3.3 可选：实机串口调试；确认 UEFI 下 multiboot2 mmap 与 QEMU 观察一致
 
