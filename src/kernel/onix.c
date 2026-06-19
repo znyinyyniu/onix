@@ -28,6 +28,13 @@ err_t onix_init()
         goto failure;
     }
 
+#ifdef ONIX_USB_BOOT
+    // UEFI/GRUB multiboot2 装载 ELF，由 GRUB 保证镜像完整，跳过 CRC
+    kernel_chksum = 0;
+    kernel_size = 0;
+    return EOK;
+#endif
+
     u32 size = kernel_size;
     u32 chksum = kernel_chksum;
 

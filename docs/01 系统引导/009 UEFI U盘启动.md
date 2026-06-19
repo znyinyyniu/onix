@@ -51,14 +51,22 @@ sudo dd if=../build/onix_usb.img of=/dev/sdX bs=4M status=progress conv=fsync
 
 ## QEMU 冒烟
 
-`qemu-usb` / `qemu-usb-xhci` **不需要**配置 `tap0` 或执行 `make tap0`（与 `make qemu` 不同）。二者使用 **`qemu-system-x86_64`**（与 x86_64 OVMF、`BOOTX64.EFI` 匹配），参数为 256M 内存、串口输出、无网卡/声卡。GRUB 通过 multiboot2 加载 32 位 `kernel.bin`，与实机 UEFI 路径一致。
+`qemu-usb` / `qemu-usb-xhci` **不需要**配置 `tap0` 或执行 `make tap0`（与 `make qemu` 不同）。二者使用 **`qemu-system-x86_64`**（与 x86_64 OVMF、`BOOTX64.EFI` 匹配），256M 内存、**`-serial stdio -display none`**，无网卡/声卡。**请只看运行 make 的终端串口**，UEFI 下 QEMU 窗口通常没有内核日志。
 
 ```sh
 make qemu-usb          # OVMF + virtio 磁盘（Phase 1 引导）
 make qemu-usb-xhci     # OVMF + qemu-xhci + usb-storage（驱动阶段）
 ```
 
-GRUB 与内核日志走当前终端串口（`grub-uefi.cfg` 已启用 `serial`）。
+改内核或 `grub-uefi.cfg` 后，需写入 ESP 再测：
+
+```sh
+make USB_BOOT=1 ../build/kernel.bin
+make usb-patch-esp     # 需 mtools；或 make usb-image 全量重建
+make qemu-usb
+```
+
+GRUB 与内核日志均走终端串口（`grub-uefi.cfg` 已配置 `terminal_output serial`）。倒计时结束后应看到 `Onix: boot` 及 `Memory base` 等日志。
 
 宿主 OVMF 固件路径为 `/usr/share/OVMF/OVMF_CODE.fd`。
 
@@ -79,6 +87,10 @@ ESP 由 `sudo mount` 与 `grub-install` 创建，需使用 `sudo cp` 写入 `ker
 **`could not configure /dev/net/tun (tap0): Operation not permitted`**
 
 旧版 `qemu-usb` 继承了 `make qemu` 的 `-netdev tap,tap0` 参数，与 U 盘引导冒烟无关。更新后 `qemu-usb` 不再使用 `tap0`。若仍看到此错误，请确认已拉取最新 `cmd.mk`。在宿主机测网络请用 `make qemu`（需先 `make tap0`）。
+
+**终端只有 `WARNING: no console will be available to OS`，无内核日志**
+
+这是 GRUB 在 UEFI 下的提示（旧版 multiboot2 头未声明 framebuffer 时常见）。更新代码后内核 multiboot2 头已含 Framebuffer tag，且早期日志走串口。请 `make USB_BOOT=1 ../build/kernel.bin`、`make usb-patch-esp`（或 `make usb-image`）后重试；倒计时结束应出现 `Onix: boot`。若仍无输出，确认使用 `qemu-system-x86_64` 且终端未被 `-display` 窗口分散注意力。
 
 **QEMU 黑屏、串口无任何 OVMF/GRUB 输出**
 

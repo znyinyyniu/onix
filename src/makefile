@@ -40,6 +40,11 @@ $(BUILD)/%.o: $(SRC)/%.asm
 	$(shell mkdir -p $(dir $@))
 	nasm -f elf32 $(DEBUG) $< -o $@
 
+# USB 启动内核：multiboot2 framebuffer tag + 早期串口探针
+$(BUILD)/kernel/start.o: $(SRC)/kernel/start.asm
+	$(shell mkdir -p $(dir $@))
+	nasm -f elf32 $(DEBUG) $(if $(USB_BOOT),-DONIX_USB_BOOT,) $< -o $@
+
 $(BUILD)/%.o: $(SRC)/%.c
 	$(shell mkdir -p $(dir $@))
 	gcc $(CFLAGS) $(DEBUG) $(INCLUDE) -c $< -o $@

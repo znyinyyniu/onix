@@ -11,7 +11,19 @@ header_start:
     dd length ; 头部长度
     dd -(magic + i386 + length); 校验和
 
+%ifdef ONIX_USB_BOOT
+    ; Framebuffer tag (type 5)：UEFI 无法提供 EGA 文本，须声明接受帧缓冲 GRUB 才会交棒
+    align 8
+    dw 5    ; type
+    dw 0    ; flags
+    dd 20   ; size
+    dd 0    ; width (0 = 无偏好)
+    dd 0    ; height
+    dd 0    ; depth
+%endif
+
     ; 结束标记
+    align 8
     dw 0    ; type
     dw 0    ; flags
     dd 8    ; size
@@ -25,6 +37,10 @@ extern memory_init
 extern kernel_init
 extern gdt_ptr
 
+%ifdef ONIX_USB_BOOT
+extern early_serial_boot_probe
+%endif
+
 code_selector equ (1 << 3)
 data_selector equ (2 << 3)
 
@@ -33,6 +49,11 @@ global _start
 _start:
     push ebx; ards_count
     push eax; magic
+
+%ifdef ONIX_USB_BOOT
+    call early_serial_boot_probe
+%endif
+
     call onix_init      ; 检测内核完整性
     call device_init    ; 虚拟设备初始化
     call console_init   ; 控制台初始化

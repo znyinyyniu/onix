@@ -53,9 +53,10 @@ OVMF:= /usr/share/OVMF/OVMF_CODE.fd
 
 # U 盘 UEFI 冒烟专用：x86_64 QEMU + OVMF（64 位固件），无网卡、无声卡，不依赖 tap0
 QEMU_USB_BASE:= qemu-system-x86_64 -m 256M
+QEMU_USB_BASE+= -display none # UEFI 下内核日志走串口，不看 QEMU 窗口
 QEMU_USB_BASE+= -rtc base=localtime
-QEMU_USB_BASE+= -chardev stdio,mux=on,id=com1
-QEMU_USB_BASE+= -serial chardev:com1
+QEMU_USB_BASE+= -serial stdio
+QEMU_USB_BASE+= -monitor none
 
 QEMU_USB:= $(QEMU_USB_BASE)
 QEMU_USB+= -bios $(OVMF)

@@ -50,6 +50,43 @@ typedef struct serial_t
 
 static serial_t serials[2];
 
+#ifdef ONIX_USB_BOOT
+#define COM1_EARLY_IOBASE COM1_IOBASE
+
+static void com1_setup(u16 iobase)
+{
+    outb(iobase + COM_INTR_ENABLE, 0);
+    outb(iobase + COM_LINE_CONTROL, 0x80);
+    outb(iobase + COM_BAUD_LSB, 0x30);
+    outb(iobase + COM_BAUD_MSB, 0x00);
+    outb(iobase + COM_LINE_CONTROL, 0x03);
+    outb(iobase + COM_INTR_IDENTIFY, 0xC7);
+    outb(iobase + COM_MODEM_CONTROL, 0x0B);
+}
+
+void early_serial_init()
+{
+    com1_setup(COM1_EARLY_IOBASE);
+}
+
+void early_serial_write(const char *buf, int count)
+{
+    u16 iobase = COM1_EARLY_IOBASE;
+    for (int i = 0; i < count; i++)
+    {
+        while (!(inb(iobase + COM_LINE_STATUS) & LSR_THRE))
+            ;
+        outb(iobase, buf[i]);
+    }
+}
+
+void early_serial_boot_probe()
+{
+    early_serial_init();
+    early_serial_write("Onix: boot\n", 11);
+}
+#endif
+
 void recv_data(serial_t *serial)
 {
     char ch = inb(serial->iobase);
@@ -167,20 +204,30 @@ void serial_init()
         // 启用 FIFO, 清空 FIFO, 14 字节触发电平
         outb(serial->iobase + COM_INTR_IDENTIFY, 0xC7);
 
-        // 设置回环模式，测试串口芯片
-        outb(serial->iobase + COM_MODEM_CONTROL, 0b11011);
-
-        // 发送字节
-        outb(serial->iobase, 0xAE);
-
-        // 收到的内容与发送的不一致，则串口不可用
-        if (inb(serial->iobase) != 0xAE)
+#ifdef ONIX_USB_BOOT
+        // QEMU -serial stdio 与实机调试口无法通过回环自检
+        if (!i)
         {
-            continue;
+            outb(serial->iobase + COM_MODEM_CONTROL, 0x0B);
         }
+        else
+#endif
+        {
+            // 设置回环模式，测试串口芯片
+            outb(serial->iobase + COM_MODEM_CONTROL, 0b11011);
 
-        // 设置回原来的模式
-        outb(serial->iobase + COM_MODEM_CONTROL, 0b1011);
+            // 发送字节
+            outb(serial->iobase, 0xAE);
+
+            // 收到的内容与发送的不一致，则串口不可用
+            if (inb(serial->iobase) != 0xAE)
+            {
+                continue;
+            }
+
+            // 设置回原来的模式
+            outb(serial->iobase + COM_MODEM_CONTROL, 0b1011);
+        }
 
         // 注册中断函数
         set_interrupt_handler(irq, serial_handler);

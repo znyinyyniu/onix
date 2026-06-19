@@ -1,9 +1,30 @@
 #include <onix/stdarg.h>
-#include <onix/console.h>
 #include <onix/stdio.h>
 #include <onix/device.h>
+#include <onix/printk.h>
 
 static char buf[1024];
+
+#ifdef ONIX_USB_BOOT
+extern void early_serial_write(const char *buf, int len);
+#endif
+
+void kmsg_write(const char *buf, int len)
+{
+    device_t *device;
+
+    device = device_find(DEV_CONSOLE, 0);
+    if (device)
+        device_write(device->dev, (char *)buf, len, 0, 0);
+
+    device = device_find(DEV_SERIAL, 0);
+    if (device)
+        device_write(device->dev, (char *)buf, len, 0, 0);
+#ifdef ONIX_USB_BOOT
+    else
+        early_serial_write(buf, len);
+#endif
+}
 
 int printk(const char *fmt, ...)
 {
@@ -16,8 +37,7 @@ int printk(const char *fmt, ...)
 
     va_end(args);
 
-    device_t *device = device_find(DEV_CONSOLE, 0);
-    device_write(device->dev, buf, i, 0, 0);
+    kmsg_write(buf, i);
 
     return i;
 }

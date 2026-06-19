@@ -71,3 +71,13 @@ $(BUILD)/onix_usb.img: $(BUILD)/kernel.bin \
 	cp $@ $(BUILD)/onix_$(ONIX_VERSION)_usb.img
 
 USB_IMAGES:= $(BUILD)/onix_usb.img
+
+# 仅更新 ESP 中的内核与 grub.cfg，无需 sudo 重建整盘镜像
+.PHONY: usb-patch-esp
+usb-patch-esp: $(BUILD)/kernel.bin $(SRC)/utils/grub-uefi.cfg
+	@test -f $(BUILD)/onix_usb.img || (echo "需要先 make usb-image 生成 onix_usb.img" && exit 1)
+	@command -v mcopy >/dev/null || (echo "请安装: sudo apt install mtools" && exit 1)
+	grub-file --is-x86-multiboot2 $(BUILD)/kernel.bin
+	mcopy -o -i $(BUILD)/onix_usb.img@@1M $(BUILD)/kernel.bin ::boot/kernel.bin
+	mcopy -o -i $(BUILD)/onix_usb.img@@1M $(SRC)/utils/grub-uefi.cfg ::boot/grub/grub.cfg
+	@echo "已更新 ESP: kernel.bin + grub.cfg"
