@@ -30,6 +30,8 @@ enum device_subtype_t
     DEV_RAMDISK,     // 虚拟磁盘
     DEV_FLOPPY,      // 软盘
     DEV_NETIF,       // 网卡
+    DEV_USB_DISK,    // USB 磁盘
+    DEV_USB_PART,    // USB 磁盘分区
 };
 
 // 设备控制命令

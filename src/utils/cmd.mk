@@ -47,3 +47,32 @@ $(BUILD)/master.vmdk: $(BUILD)/master.img
 
 .PHONY:vmdk
 vmdk: $(BUILD)/master.vmdk
+
+# UEFI U 盘启动（OVMF）
+OVMF:= /usr/share/OVMF/OVMF_CODE.fd
+
+QEMU_USB:= $(QEMU)
+QEMU_USB+= -bios $(OVMF)
+QEMU_USB+= -drive file=$(BUILD)/onix_usb.img,format=raw,if=virtio
+QEMU_USB+= -boot order=c
+
+QEMU_USB_XHCI:= $(QEMU)
+QEMU_USB_XHCI+= -bios $(OVMF)
+QEMU_USB_XHCI+= -device qemu-xhci,id=xhci
+QEMU_USB_XHCI+= -device usb-storage,bus=xhci.0,drive=usb0
+QEMU_USB_XHCI+= -drive id=usb0,file=$(BUILD)/onix_usb.img,format=raw,if=none
+QEMU_USB_XHCI+= -boot order=d
+
+.PHONY: qemu-usb
+qemu-usb: $(BUILD)/onix_usb.img
+	test -f $(OVMF) || test -f /usr/share/OVMF/OVMF.fd || (echo "需要: sudo apt install ovmf" && false)
+	$(QEMU_USB)
+
+.PHONY: qemu-usb-xhci
+qemu-usb-xhci: usb-image
+	test -f $(OVMF) || test -f /usr/share/OVMF/OVMF.fd || (echo "需要: sudo apt install ovmf" && false)
+	$(QEMU_USB_XHCI)
+
+.PHONY: usb-inspect
+usb-inspect: $(BUILD)/onix_usb.img
+	bash $(SRC)/utils/usb-inspect.sh $(BUILD)/onix_usb.img

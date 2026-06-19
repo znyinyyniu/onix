@@ -19,6 +19,10 @@ CFLAGS+= -DONIX					# 定义 ONIX
 CFLAGS+= -DONIX_DEBUG			# 定义 ONIX_DEBUG
 CFLAGS+= -DONIX_VERSION='"$(ONIX_VERSION)"' # 定义 ONIX_VERSION
 
+ifdef USB_BOOT
+CFLAGS+= -DONIX_USB_BOOT
+endif
+
 CFLAGS:=$(strip ${CFLAGS})
 
 DEBUG:= -g
@@ -139,6 +143,10 @@ $(BUILD)/kernel.raw.bin: \
 	$(BUILD)/kernel/fpu.o \
 	$(BUILD)/kernel/test.o \
 	$(BUILD)/kernel/e1000.o \
+	$(BUILD)/kernel/gpt.o \
+	$(BUILD)/kernel/usb.o \
+	$(BUILD)/kernel/xhci.o \
+	$(BUILD)/kernel/usb_storage.o \
 	$(BUILD)/net/pbuf.o \
 	$(BUILD)/net/chksum.o \
 	$(BUILD)/net/netif.o \
@@ -201,8 +209,13 @@ $(BUILD)/system.map: $(BUILD)/kernel.bin
 
 include utils/image.mk
 include utils/cdrom.mk
+include utils/usb-efi.mk
 include utils/net.mk
 include utils/cmd.mk
+
+.PHONY: usb-image
+usb-image:
+	$(MAKE) USB_BOOT=1 $(BUILD)/onix_usb.img
 
 .PHONY: clean
 clean:

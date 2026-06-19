@@ -98,12 +98,17 @@ super_t *read_super(dev_t dev)
 static void mount_root()
 {
     LOGK("Mount root file system...\n");
-    // 假设主硬盘第一个分区是根文件系统
-    device_t *device = device_find(DEV_IDE_PART, 0);
+    device_t *device = NULL;
+
+#ifdef ONIX_USB_BOOT
+    device = device_find(DEV_USB_PART, 1);
     if (!device)
-    {
+        device = device_find(DEV_USB_PART, 0);
+#else
+    device = device_find(DEV_IDE_PART, 0);
+    if (!device)
         device = device_find(DEV_IDE_CD, 0);
-    }
+#endif
     if (!device)
     {
         panic("Cann't find available device.");
