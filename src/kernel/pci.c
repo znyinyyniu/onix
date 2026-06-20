@@ -6,6 +6,7 @@
 #include <onix/debug.h>
 #include <onix/list.h>
 #include <onix/arena.h>
+#include <onix/stdlib.h>
 
 #define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
@@ -204,6 +205,86 @@ err_t pci_find_bar(pci_device_t *device, pci_bar_t *bar, int type)
             bar->size = pci_size(len, PCI_BAR_MEM_MASK);
             return EOK;
         }
+    }
+    return -EIO;
+}
+
+#define PCI_MMIO_BASE 0xF0000000
+#define PCI_MMIO_LIMIT 0xFFC00000
+
+static u32 pci_mmio_next = PCI_MMIO_BASE;
+
+// 查找首个 MEM BAR，未分配时写入 MMIO 基址并启用 memory + bus master
+err_t pci_map_mem_bar(pci_device_t *device, pci_bar_t *bar)
+{
+    u32 cmd = pci_inl(device->bus, device->dev, device->func, PCI_CONF_COMMAND);
+    pci_outl(device->bus, device->dev, device->func, PCI_CONF_COMMAND,
+             cmd | PCI_COMMAND_MEMORY);
+
+    for (size_t idx = 0; idx < PCI_BAR_NR; idx++)
+    {
+        u8 addr = PCI_CONF_BASE_ADDR0 + (idx << 2);
+        u32 value = pci_inl(device->bus, device->dev, device->func, addr);
+
+        if (value & 1)
+            continue;
+
+        u32 memtype = value & 0xF;
+        bool is64 = (memtype & 0x6) == 0x4;
+
+        pci_outl(device->bus, device->dev, device->func, addr, -1);
+        if (is64 || value == 0)
+            pci_outl(device->bus, device->dev, device->func, addr + 4, -1);
+        u32 len = pci_inl(device->bus, device->dev, device->func, addr);
+        pci_outl(device->bus, device->dev, device->func, addr, value);
+        if (is64 || value == 0)
+            pci_outl(device->bus, device->dev, device->func, addr + 4, 0);
+
+        if (len == 0 || len == (u32)-1)
+            continue;
+
+        // 未分配 BAR 读数为 0，类型位来自 size 探测
+        if (value == 0)
+            memtype = len & 0xF;
+
+        u32 size = pci_size(len, PCI_BAR_MEM_MASK);
+        if (size == 0)
+            continue;
+
+        u32 iobase = value & PCI_BAR_MEM_MASK;
+
+        if (is64 || (memtype & 0x6) == 0x4)
+        {
+            u32 high = pci_inl(device->bus, device->dev, device->func, addr + 4);
+            if (iobase == 0 && high == 0)
+            {
+                u32 base = pci_mmio_next;
+                pci_mmio_next = div_round_up(pci_mmio_next + size, size);
+                assert(pci_mmio_next < PCI_MMIO_LIMIT);
+                pci_outl(device->bus, device->dev, device->func, addr,
+                         (base & PCI_BAR_MEM_MASK) | memtype);
+                pci_outl(device->bus, device->dev, device->func, addr + 4, 0);
+                iobase = base;
+            }
+            idx++;
+        }
+        else if (iobase == 0)
+        {
+            u32 base = pci_mmio_next;
+            pci_mmio_next = div_round_up(pci_mmio_next + size, size);
+            assert(pci_mmio_next < PCI_MMIO_LIMIT);
+            pci_outl(device->bus, device->dev, device->func, addr, base | memtype);
+            iobase = base;
+        }
+
+        bar->iobase = iobase;
+        bar->size = size;
+
+        cmd = pci_inl(device->bus, device->dev, device->func, PCI_CONF_COMMAND);
+        cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
+        pci_outl(device->bus, device->dev, device->func, PCI_CONF_COMMAND, cmd);
+
+        return EOK;
     }
     return -EIO;
 }

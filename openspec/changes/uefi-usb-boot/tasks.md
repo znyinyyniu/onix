@@ -16,8 +16,8 @@
 ## 3. 实机验收：镜像与 UEFI 引导（Phase 1）
 
 - [x] 3.1 构建 `onix_usb.img` 并 `dd` 写入 U 盘
-- [ ] 3.2 在 i5-5200U 上从 USB 3.0 口验证 UEFI 启动：出现 GRUB 菜单并成功加载内核（驱动完成前预期 `mount_root` panic）
-- [ ] 3.3 可选：实机串口调试；确认 UEFI 下 multiboot2 mmap 与 QEMU 观察一致
+- [x] 3.2 在 i5-5200U 上从 USB 3.0 口验证 UEFI 启动：出现 GRUB 菜单并成功加载内核（驱动完成前预期 `mount_root` panic）
+- [x] 3.3 可选：实机串口调试；确认 UEFI 下 multiboot2 mmap 与 QEMU 观察一致
 
 ## 4. 设备模型与 GPT 分区
 
@@ -55,8 +55,8 @@
 ## 8. QEMU 冒烟：驱动与端到端（Phase 3–4）
 
 - [x] 8.1 在 `cmd.mk` 增加 `qemu-usb-xhci` 目标（`qemu-xhci` + `usb-storage` 挂载 `onix_usb.img`）
-- [ ] 8.2 QEMU：xHCI 枚举 U 盘，GPT 解析成功，日志可见 P2 块设备
-- [ ] 8.3 QEMU：内核进入用户态，`mount_root` 挂载 Minix P2
+- [x] 8.2 QEMU：xHCI 枚举 U 盘，GPT 解析成功，日志可见 P2 块设备
+- [x] 8.3 QEMU：内核进入用户态，`mount_root` 挂载 Minix P2
 - [ ] 8.4 QEMU：可写根验证——创建或覆盖 `/hello.txt` 并读回；运行至少一个 `/bin` 内置程序
 
 ## 9. 实机验收：端到端（最终门禁）

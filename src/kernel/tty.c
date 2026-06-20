@@ -7,8 +7,37 @@
 #include <onix/debug.h>
 #include <onix/errno.h>
 #include <onix/syscall.h>
+#ifdef ONIX_USB_BOOT
+#include <onix/fbcon.h>
+#endif
 
 #define LOGK(fmt, args...) DEBUGK(fmt, ##args)
+
+#ifdef ONIX_USB_BOOT
+static void fbcon_write_filtered(const char *buf, int len)
+{
+    if (!fbcon_ready())
+        return;
+
+    bool esc = false;
+    for (int i = 0; i < len; i++)
+    {
+        char ch = buf[i];
+        if (esc)
+        {
+            if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'))
+                esc = false;
+            continue;
+        }
+        if (ch == '\033')
+        {
+            esc = true;
+            continue;
+        }
+        fbcon_write(&ch, 1);
+    }
+}
+#endif
 
 extern task_t *task_table[TASK_NR]; // 任务表
 static tty_t typewriter;
@@ -76,7 +105,11 @@ int tty_read(tty_t *tty, char *buf, u32 count)
 // TTY 写
 int tty_write(tty_t *tty, char *buf, u32 count)
 {
-    return device_write(tty->wdev, buf, count, 0, 0);
+    int ret = device_write(tty->wdev, buf, count, 0, 0);
+#ifdef ONIX_USB_BOOT
+    fbcon_write_filtered(buf, count);
+#endif
+    return ret;
 }
 
 int tty_ioctl(tty_t *tty, int cmd, void *args, int flags)
@@ -110,13 +143,25 @@ void tty_init()
 
     tty_t *tty = &typewriter;
 
-    // 输入设备是键盘
-    device = device_find(DEV_KEYBOARD, 0);
-    tty->rdev = device->dev;
+#ifdef ONIX_USB_BOOT
+    // UEFI GOP 下 VGA 文本缓冲不可见，优先用串口做交互
+    device = device_find(DEV_SERIAL, 0);
+    if (device)
+    {
+        tty->rdev = device->dev;
+        tty->wdev = device->dev;
+    }
+    else
+#endif
+    {
+        // 输入设备是键盘
+        device = device_find(DEV_KEYBOARD, 0);
+        tty->rdev = device->dev;
 
-    // 输出设备是控制台
-    device = device_find(DEV_CONSOLE, 0);
-    tty->wdev = device->dev;
+        // 输出设备是控制台
+        device = device_find(DEV_CONSOLE, 0);
+        tty->wdev = device->dev;
+    }
 
     device_install(DEV_CHAR, DEV_TTY, tty, "tty", 0, tty_ioctl, tty_read, tty_write);
 }

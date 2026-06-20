@@ -608,11 +608,9 @@ page_entry_t *copy_pde()
         if (!dentry->present)
             continue;
 
-        // 将所有页表也置为只读
+        // 先将页表项置为只读并增加引用，再置 PDE 只读（否则无法写 PTE）
         assert(memory_map[dentry->index] > 0);
-        dentry->write = false;
         memory_map[dentry->index]++;
-        assert(memory_map[dentry->index] < 255);
 
         page_entry_t *pte = (page_entry_t *)(PDE_MASK | (didx << 12));
 
@@ -635,6 +633,9 @@ page_entry_t *copy_pde()
 
             assert(memory_map[entry->index] < 255);
         }
+
+        dentry->write = false;
+        assert(memory_map[dentry->index] < 255);
     }
 
     pde = (page_entry_t *)alloc_kpage(1);

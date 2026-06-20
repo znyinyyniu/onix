@@ -274,31 +274,31 @@ static void load_segment(inode_t *inode, Elf32_Phdr *phdr)
 
 static u32 load_elf(inode_t *inode)
 {
-    link_page(USER_EXEC_ADDR);
-
-    int n = 0;
-    // 读取 ELF 文件头
-    n = inode->op->read(inode, (char *)USER_EXEC_ADDR, sizeof(Elf32_Ehdr), 0);
-    assert(n == sizeof(Elf32_Ehdr));
-
-    Elf32_Ehdr *ehdr = (Elf32_Ehdr *)USER_EXEC_ADDR;
-    if (!elf_validate(ehdr))
+    Elf32_Ehdr ehdr;
+    int n = inode->op->read(inode, (char *)&ehdr, sizeof(ehdr), 0);
+    if (n != (int)sizeof(ehdr) || !elf_validate(&ehdr))
         return EOF;
 
-    // 读取程序段头表
-    Elf32_Phdr *phdr = (Elf32_Phdr *)(USER_EXEC_ADDR + sizeof(Elf32_Ehdr));
-    n = inode->op->read(inode, (char *)phdr, ehdr->e_phnum * ehdr->e_phentsize, ehdr->e_phoff);
-
-    Elf32_Phdr *ptr = phdr;
-    for (size_t i = 0; i < ehdr->e_phnum; i++)
+    u32 entry = ehdr.e_entry;
+    int phnum = ehdr.e_phnum;
+    int phsize = phnum * (int)sizeof(Elf32_Phdr);
+    Elf32_Phdr *phdrs = (Elf32_Phdr *)alloc_kpage(div_round_up(phsize, PAGE_SIZE));
+    n = inode->op->read(inode, (char *)phdrs, phsize, ehdr.e_phoff);
+    if (n != phsize)
     {
-        if (ptr->p_type != PT_LOAD)
-            continue;
-        load_segment(inode, ptr);
-        ptr++;
+        free_kpage((u32)phdrs, div_round_up(phsize, PAGE_SIZE));
+        return EOF;
     }
 
-    return ehdr->e_entry;
+    for (int i = 0; i < phnum; i++)
+    {
+        if (phdrs[i].p_type != PT_LOAD)
+            continue;
+        load_segment(inode, &phdrs[i]);
+    }
+
+    free_kpage((u32)phdrs, div_round_up(phsize, PAGE_SIZE));
+    return entry;
 }
 
 // 计算参数数量
@@ -391,6 +391,9 @@ static u32 copy_argv_envp(char *filename, char *argv[], char *envp[])
     // 将参数和环境变量拷贝到用户栈
     len = (pages_end - (u32)ktop);
     utop = (char *)(USER_STACK_TOP - len);
+    u32 stack = (u32)utop & ~(PAGE_SIZE - 1);
+    for (u32 pg = USER_STACK_BOTTOM; pg < USER_STACK_TOP; pg += PAGE_SIZE)
+        link_page(pg);
     memcpy(utop, ktop, len);
 
     // 释放内核内存

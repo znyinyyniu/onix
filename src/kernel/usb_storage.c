@@ -42,43 +42,58 @@ typedef struct read_capacity10_t
 
 static usb_disk_t usb_disks[USB_DISK_NR];
 static u32 bot_tag = 1;
+static bot_cbw_t bot_cbw_buf;
+static bot_csw_t bot_csw_buf;
+static read_capacity10_t bot_cap_buf;
 
 static err_t bot_command(xhci_device_t *xdev, u8 *cb, u8 cb_len, void *data, u32 data_len, bool in)
 {
-    bot_cbw_t cbw;
-    memset(&cbw, 0, sizeof(cbw));
-    cbw.signature = CBW_SIGNATURE;
-    cbw.tag = bot_tag;
-    cbw.data_len = data_len;
-    cbw.flags = in ? 0x80 : 0;
-    cbw.lun = 0;
-    cbw.cb_len = cb_len;
-    memcpy(cbw.cb, cb, cb_len);
+    bot_cbw_t *cbw = &bot_cbw_buf;
+    memset(cbw, 0, sizeof(*cbw));
+    cbw->signature = CBW_SIGNATURE;
+    cbw->tag = bot_tag;
+    cbw->data_len = data_len;
+    cbw->flags = in ? 0x80 : 0;
+    cbw->lun = 0;
+    cbw->cb_len = cb_len;
+    memcpy(cbw->cb, cb, cb_len);
 
-    if (xhci_bulk_out(xdev, &cbw, sizeof(cbw)) < EOK)
+    if (xhci_bulk_out(xdev, cbw, sizeof(*cbw)) < EOK)
+    {
+        LOGK("BOT CBW bulk out failed\n");
         return -EIO;
+    }
 
     if (data_len > 0)
     {
         if (in)
         {
             if (xhci_bulk_in(xdev, data, data_len) < EOK)
+            {
+                LOGK("BOT data bulk in failed\n");
                 return -EIO;
+            }
         }
         else
         {
             if (xhci_bulk_out(xdev, data, data_len) < EOK)
+            {
+                LOGK("BOT data bulk out failed\n");
                 return -EIO;
+            }
         }
     }
 
-    bot_csw_t csw;
-    if (xhci_bulk_in(xdev, &csw, sizeof(csw)) < EOK)
-        return -EIO;
-
-    if (csw.signature != CSW_SIGNATURE || csw.tag != bot_tag || csw.status != 0)
+    bot_csw_t *csw = &bot_csw_buf;
+    if (xhci_bulk_in(xdev, csw, sizeof(*csw)) < EOK)
     {
-        LOGK("BOT CSW error sig 0x%x tag %d status %d\n", csw.signature, csw.tag, csw.status);
+        LOGK("BOT CSW bulk in failed\n");
+        return -EIO;
+    }
+
+    if (csw->signature != CSW_SIGNATURE || csw->tag != bot_tag || csw->status != 0)
+    {
+        LOGK("BOT CSW error sig 0x%x tag %d status %d\n", csw->signature, csw->tag, csw->status);
         return -EIO;
     }
 
@@ -89,16 +104,16 @@ static err_t bot_command(xhci_device_t *xdev, u8 *cb, u8 cb_len, void *data, u32
 static err_t usb_storage_read_capacity(usb_disk_t *disk)
 {
     u8 cb[16];
-    read_capacity10_t cap;
+    read_capacity10_t *cap = &bot_cap_buf;
 
     memset(cb, 0, sizeof(cb));
     cb[0] = SCSI_READ_CAPACITY10;
 
-    if (bot_command(disk->xdev, cb, 10, &cap, sizeof(cap), true) < EOK)
+    if (bot_command(disk->xdev, cb, 10, cap, sizeof(*cap), true) < EOK)
         return -EIO;
 
-    u32 blocks = ntohl(cap.lba) + 1;
-    u32 block_len = ntohl(cap.block_len);
+    u32 blocks = ntohl(cap->lba) + 1;
+    u32 block_len = ntohl(cap->block_len);
 
     if (block_len != SECTOR_SIZE)
     {

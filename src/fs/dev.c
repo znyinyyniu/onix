@@ -162,6 +162,26 @@ void dev_init()
         assert(mknod(name, IFBLK | 0600, device->dev) == EOK);
     }
 
+#ifdef ONIX_USB_BOOT
+    for (size_t i = 0; true; i++)
+    {
+        device = device_find(DEV_USB_DISK, i);
+        if (!device)
+            break;
+        sprintf(name, "/dev/%s", device->name);
+        assert(mknod(name, IFBLK | 0600, device->dev) == EOK);
+    }
+
+    for (size_t i = 0; true; i++)
+    {
+        device = device_find(DEV_USB_PART, i);
+        if (!device)
+            break;
+        sprintf(name, "/dev/%s", device->name);
+        assert(mknod(name, IFBLK | 0600, device->dev) == EOK);
+    }
+#endif
+
     for (size_t i = 0; true; i++)
     {
         device = device_find(DEV_SERIAL, i);
