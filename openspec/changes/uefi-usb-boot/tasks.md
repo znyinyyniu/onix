@@ -57,7 +57,7 @@
 - [x] 8.1 在 `cmd.mk` 增加 `qemu-usb-xhci` 目标（`qemu-xhci` + `usb-storage` 挂载 `onix_usb.img`）
 - [x] 8.2 QEMU：xHCI 枚举 U 盘，GPT 解析成功，日志可见 P2 块设备
 - [x] 8.3 QEMU：内核进入用户态，`mount_root` 挂载 Minix P2
-- [ ] 8.4 QEMU：可写根验证——创建或覆盖 `/hello.txt` 并读回；运行至少一个 `/bin` 内置程序
+- [x] 8.4 QEMU：可写根验证——创建或覆盖 `/hello.txt` 并读回；运行至少一个 `/bin` 内置程序
 
 ## 9. 实机验收：端到端（最终门禁）
 
