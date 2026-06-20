@@ -6,6 +6,7 @@
 #include <onix/mutex.h>
 #include <onix/task.h>
 #include <onix/device.h>
+#include <onix/tty.h>
 #include <onix/errno.h>
 
 #define LOGK(fmt, args...) DEBUGK(fmt, ##args)
@@ -398,6 +399,15 @@ void keyboard_handler(int vector)
         task_unblock(waiter, EOK);
         waiter = NULL;
     }
+    tty_input_wake();
+}
+
+bool keyboard_has_char(void)
+{
+    lock_acquire(&lock);
+    bool ready = !fifo_empty(&fifo);
+    lock_release(&lock);
+    return ready;
 }
 
 u32 keyboard_read(void *dev, char *buf, u32 count)

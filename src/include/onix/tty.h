@@ -12,4 +12,8 @@ typedef struct tty_t
 // ioctl 设置进程组命令
 #define TIOCSPGRP 0x5410
 
+void tty_input_wake(void);
+bool keyboard_has_char(void);
+bool serial_has_char(dev_t dev);
+
 #endif

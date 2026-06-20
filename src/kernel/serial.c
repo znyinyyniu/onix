@@ -9,6 +9,7 @@
 #include <onix/stdarg.h>
 #include <onix/stdio.h>
 #include <onix/errno.h>
+#include <onix/tty.h>
 
 #define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
@@ -100,6 +101,20 @@ void recv_data(serial_t *serial)
         task_unblock(serial->rx_waiter, EOK);
         serial->rx_waiter = NULL;
     }
+    tty_input_wake();
+}
+
+bool serial_has_char(dev_t dev)
+{
+    device_t *device = device_get(dev);
+    if (!device)
+        return false;
+
+    serial_t *serial = (serial_t *)device->ptr;
+    lock_acquire(&serial->rlock);
+    bool ready = !fifo_empty(&serial->rx_fifo);
+    lock_release(&serial->rlock);
+    return ready;
 }
 
 // 中断处理函数
