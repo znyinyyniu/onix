@@ -9,7 +9,6 @@
 #include <onix/stdlib.h>
 #include <onix/debug.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define SUPER_NR 16
 

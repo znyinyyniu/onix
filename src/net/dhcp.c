@@ -8,7 +8,6 @@
 #include <onix/assert.h>
 #include <onix/debug.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 // DHCP OPTION 选项
 enum

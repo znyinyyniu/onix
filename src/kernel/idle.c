@@ -4,7 +4,6 @@
 
 // #include <asm/unistd_32.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 void idle_thread()
 {

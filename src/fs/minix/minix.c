@@ -15,7 +15,6 @@
 
 #include "minix.h"
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 // 分配一个文件块
 idx_t minix_balloc(super_t *super)

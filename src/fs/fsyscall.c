@@ -8,7 +8,6 @@
 #include <onix/string.h>
 #include <onix/stat.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 fd_t sys_open(char *filename, int flags, int mode)
 {

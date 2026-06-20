@@ -6,7 +6,6 @@
 #include <onix/stdio.h>
 #include <onix/net/types.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define CBW_SIGNATURE 0x43425355
 #define CSW_SIGNATURE 0x53425355

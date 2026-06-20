@@ -7,7 +7,6 @@
 #include <onix/assert.h>
 #include <onix/debug.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 // 判断文件名是否相等
 bool match_name(const char *name, const char *entry_name, char **next, int count)

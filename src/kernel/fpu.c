@@ -6,7 +6,6 @@
 #include <onix/debug.h>
 #include <onix/assert.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 task_t *last_fpu_task = NULL;
 

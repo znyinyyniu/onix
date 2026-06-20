@@ -8,7 +8,6 @@
 #include <onix/assert.h>
 #include <onix/debug.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 list_t tcp_pcb_create_list;   // 创建 pcb 列表
 list_t tcp_pcb_active_list;   // 活动 pcb 列表

@@ -99,7 +99,10 @@ int main(int argc, char const *argv[], char const *envp[])
 {
     fd_t fd = open(".", O_RDONLY, 0);
     if (fd < EOK)
-        return EOF;
+    {
+        printf("ls: open . failed (%d)\n", fd);
+        return fd;
+    }
 
     bool list = false;
     if (argc == 2 && !strcmp(argv[1], "-l"))

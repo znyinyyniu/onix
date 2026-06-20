@@ -5,7 +5,6 @@
 #include <onix/debug.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 int sys_uname(utsname_t *buf)
 {

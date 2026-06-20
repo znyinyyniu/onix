@@ -5,7 +5,6 @@
 #include <onix/assert.h>
 #include <onix/debug.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 static list_t free_pbuf_list;
 static size_t pbuf_count = 0;

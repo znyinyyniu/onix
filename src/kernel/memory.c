@@ -14,9 +14,6 @@
 #include <onix/fbcon.h>
 #endif
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
-// #define LOGK(fmt, args...)
-
 #ifdef ONIX_DEBUG
 #define USER_MEMORY true
 #else
@@ -194,7 +191,7 @@ static u32 get_page()
             assert(free_pages > 0);
             free_pages--;
             u32 page = PAGE(i);
-            LOGK("GET page 0x%p\n", page);
+            LOG_TRACE("GET page 0x%p\n", page);
             return page;
         }
     }
@@ -224,7 +221,7 @@ static void put_page(u32 addr)
     }
 
     assert(free_pages > 0 && free_pages < total_pages);
-    LOGK("PUT page 0x%p\n", addr);
+    LOG_TRACE("PUT page 0x%p\n", addr);
 }
 
 // 得到 cr2 寄存器
@@ -336,7 +333,7 @@ static page_entry_t *get_pte(u32 vaddr, bool create)
 
     if (!entry->present)
     {
-        LOGK("Get and create page table entry for 0x%p\n", vaddr);
+        LOG_TRACE("Get and create page table entry for 0x%p\n", vaddr);
         u32 page = get_page();
         entry_init(entry, IDX(page));
         memset(table, 0, PAGE_SIZE);
@@ -385,7 +382,7 @@ static u32 scan_page(bitmap_t *map, u32 count)
     }
 
     u32 addr = PAGE(index);
-    LOGK("Scan page 0x%p count %d\n", addr, count);
+    LOG_TRACE("Scan page 0x%p count %d\n", addr, count);
     return addr;
 }
 
@@ -408,7 +405,7 @@ u32 alloc_kpage(u32 count)
 {
     assert(count > 0);
     u32 vaddr = scan_page(&kernel_map, count);
-    LOGK("ALLOC kernel pages 0x%p count %d\n", vaddr, count);
+    LOG_TRACE("ALLOC kernel pages 0x%p count %d\n", vaddr, count);
     return vaddr;
 }
 
@@ -418,7 +415,7 @@ void free_kpage(u32 vaddr, u32 count)
     ASSERT_PAGE(vaddr);
     assert(count > 0);
     reset_page(&kernel_map, vaddr, count);
-    LOGK("FREE  kernel pages 0x%p count %d\n", vaddr, count);
+    LOG_TRACE("FREE  kernel pages 0x%p count %d\n", vaddr, count);
 }
 
 // 拷贝一页，返回拷贝后的物理地址
@@ -464,7 +461,7 @@ void copy_on_write(u32 vaddr, int level)
     if (memory_map[entry->index] == 1)
     {
         entry->write = true;
-        LOGK("WRITE page for 0x%p\n", vaddr);
+        LOG_TRACE("WRITE page for 0x%p\n", vaddr);
     }
     else
     {
@@ -477,7 +474,7 @@ void copy_on_write(u32 vaddr, int level)
         // 设置新的物理页，可写
         entry->index = IDX(paddr);
         entry->write = true;
-        LOGK("COPY page for 0x%p\n", vaddr);
+        LOG_TRACE("COPY page for 0x%p\n", vaddr);
     }
 
     // 刷新快表，很多错误发生在快表没有及时刷新 😔
@@ -506,7 +503,7 @@ void link_page(u32 vaddr)
     entry_init(entry, IDX(paddr));
     flush_tlb(vaddr);
 
-    LOGK("LINK from 0x%p to 0x%p\n", vaddr, paddr);
+    LOG_TRACE("LINK from 0x%p to 0x%p\n", vaddr, paddr);
 }
 
 // 去掉 vaddr 对应的物理内存映射
@@ -531,7 +528,7 @@ void unlink_page(u32 vaddr)
 
     u32 paddr = PAGE(entry->index);
 
-    DEBUGK("UNLINK from 0x%p to 0x%p\n", vaddr, paddr);
+    LOG_TRACE("UNLINK from 0x%p to 0x%p\n", vaddr, paddr);
     put_page(paddr);
 
     flush_tlb(vaddr);
@@ -578,7 +575,7 @@ void map_mmio_range(u32 addr, u32 size)
         entry->index = IDX(v);
         flush_tlb(v);
     }
-    LOGK("MAP mmio 0x%p size 0x%X\n", addr, size);
+    LOGI("MAP mmio 0x%p size 0x%X\n", addr, size);
 }
 #endif
 
@@ -590,7 +587,7 @@ void map_area(u32 paddr, u32 size)
     {
         map_page(paddr + i * PAGE_SIZE, paddr + i * PAGE_SIZE);
     }
-    LOGK("MAP memory 0x%p size 0x%X\n", paddr, size);
+    LOGI("MAP memory 0x%p size 0x%X\n", paddr, size);
 }
 
 // 拷贝当前页目录
@@ -686,12 +683,12 @@ void free_pde()
 
     // 释放页目录
     free_kpage(task->pde, 1);
-    LOGK("free pages %d\n", free_pages);
+    LOG_TRACE("free pages %d\n", free_pages);
 }
 
 int32 sys_brk(void *addr)
 {
-    LOGK("task brk 0x%p\n", addr);
+    LOG_TRACE("task brk 0x%p\n", addr);
     u32 brk = (u32)addr;
     ASSERT_PAGE(brk);
 
@@ -813,7 +810,7 @@ void page_fault(
 {
     assert(vector == 0xe);
     u32 vaddr = get_cr2();
-    LOGK("fault address 0x%p eip 0x%p\n", vaddr, eip);
+    LOGW("fault address 0x%p eip 0x%p\n", vaddr, eip);
 
     page_error_code_t *code = (page_error_code_t *)&error;
     task_t *task = running_task();
@@ -852,7 +849,7 @@ void page_fault(
         return;
     }
 
-    LOGK("task 0x%p name %s brk 0x%p page fault\n", task, task->name, task->brk);
+    LOGW("task 0x%p name %s brk 0x%p page fault\n", task, task->name, task->brk);
     panic("page fault!!!");
 }
 

@@ -5,7 +5,6 @@
 #include <onix/assert.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 static usb_disk_t *usb_disk_list[USB_DISK_NR];
 static int usb_disk_count;

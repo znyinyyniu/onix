@@ -3,7 +3,6 @@
 #include <onix/debug.h>
 #include <onix/memory.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 bool gpt_validate_header(gpt_header_t *header)
 {

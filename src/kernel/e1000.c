@@ -18,7 +18,6 @@
 #include <onix/net/chksum.h>
 #include <onix/net/netif.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define VENDORID 0x8086 // 供应商英特尔
 

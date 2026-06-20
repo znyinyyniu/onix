@@ -13,7 +13,6 @@
 #include <onix/errno.h>
 #include <onix/memory.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args);
 
 static list_t netif_list; // 虚拟网卡列表
 

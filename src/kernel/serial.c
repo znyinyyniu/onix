@@ -11,7 +11,6 @@
 #include <onix/errno.h>
 #include <onix/tty.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define COM1_IOBASE 0x3F8 // 串口 1 基地址
 #define COM2_IOBASE 0x2F8 // 串口 2 基地址
@@ -170,9 +169,10 @@ int serial_write(serial_t *serial, char *buf, u32 count)
             outb(serial->iobase, buf[nr++]);
             continue;
         }
-        // task_t *task = running_task();
-        // serial->tx_waiter = task;
-        // task_block(task, NULL, TASK_BLOCKED, TIMELESS);
+        assert(serial->tx_waiter == NULL);
+        serial->tx_waiter = running_task();
+        task_block(serial->tx_waiter, NULL, TASK_BLOCKED, TIMELESS);
+        serial->tx_waiter = NULL;
     }
     lock_release(&serial->wlock);
     return nr;

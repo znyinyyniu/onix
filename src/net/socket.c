@@ -9,7 +9,6 @@
 #include <onix/debug.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define BACKLOG 32
 

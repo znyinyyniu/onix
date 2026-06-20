@@ -8,7 +8,6 @@
 #include <onix/debug.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 // references:
 // <https://datatracker.ietf.org/doc/html/rfc1035>

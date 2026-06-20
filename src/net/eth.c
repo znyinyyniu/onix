@@ -5,7 +5,6 @@
 #include <onix/errno.h>
 #include <onix/assert.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 // 接收以太网帧
 err_t eth_input(netif_t *netif, pbuf_t *pbuf)

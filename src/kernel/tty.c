@@ -11,7 +11,6 @@
 #include <onix/fbcon.h>
 #endif
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #ifdef ONIX_USB_BOOT
 static void fbcon_write_filtered(const char *buf, int len)

@@ -17,7 +17,6 @@
 #include <onix/mutex.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define SB_MIXER 0x224      // DSP 混合器端口
 #define SB_MIXER_DATA 0x225 // DSP 混合器数据端口

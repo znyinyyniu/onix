@@ -8,8 +8,6 @@
 #include <onix/task.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
-
 #define BUFFER_DESC_NR 3 // 描述符数量 1024 2048 4096
 
 static bdesc_t bdescs[BUFFER_DESC_NR];
@@ -106,7 +104,7 @@ static err_t buffer_alloc(bdesc_t *desc)
         lock_init(&buf->lock);
 
         list_push(&desc->free_list, &buf->rnode);
-        LOGK("buffer size %d count %d\n", desc->size, desc->count);
+        LOG_TRACE("buffer size %d count %d\n", desc->size, desc->count);
     }
 
     return EOK;
@@ -270,7 +268,7 @@ err_t bdirty(buffer_t *buf, bool dirty)
 
 void buffer_init()
 {
-    LOGK("buffer_t size is %d\n", sizeof(buffer_t));
+    LOGI("buffer_t size is %d\n", sizeof(buffer_t));
 
     size_t size = 1024;
     for (size_t i = 0; i < BUFFER_DESC_NR; i++)

@@ -6,8 +6,6 @@
 #include <onix/arena.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
-
 static device_t devices[DEVICE_NR]; // 设备数组
 
 // 获取空设备
@@ -29,7 +27,7 @@ int device_ioctl(dev_t dev, int cmd, void *args, int flags)
     {
         return device->ioctl(device->ptr, cmd, args, flags);
     }
-    LOGK("ioctl of device %d not implemented!!!\n", dev);
+    LOGW("ioctl of device %d not implemented!!!\n", dev);
     return -ENOSYS;
 }
 
@@ -40,7 +38,7 @@ int device_read(dev_t dev, void *buf, size_t count, idx_t idx, int flags)
     {
         return device->read(device->ptr, buf, count, idx, flags);
     }
-    LOGK("read of device %d not implemented!!!\n", dev);
+    LOGW("read of device %d not implemented!!!\n", dev);
     return -ENOSYS;
 }
 
@@ -51,7 +49,7 @@ int device_write(dev_t dev, void *buf, size_t count, idx_t idx, int flags)
     {
         return device->write(device->ptr, buf, count, idx, flags);
     }
-    LOGK("write of device %d not implemented!!!\n", dev);
+    LOGW("write of device %d not implemented!!!\n", dev);
     return -ENOSYS;
 }
 
@@ -118,7 +116,7 @@ device_t *device_get(dev_t dev)
 // 执行块设备请求
 static int do_request(request_t *req)
 {
-    LOGK("dev %d do request idx %d\n", req->dev, req->idx);
+    LOG_TRACE("dev %d do request idx %d\n", req->dev, req->idx);
 
     switch (req->type)
     {
@@ -189,7 +187,7 @@ err_t device_request(dev_t dev, void *buf, u8 count, idx_t idx, int flags, u32 t
     req->type = type;
     req->task = NULL;
 
-    LOGK("dev %d request idx %d\n", req->dev, req->idx);
+    LOG_TRACE("dev %d request idx %d\n", req->dev, req->idx);
 
     // 判断列表是否为空
     bool empty = list_empty(&device->request_list);

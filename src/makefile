@@ -16,8 +16,16 @@ CFLAGS+= -nostdlib				# 不需要标准库
 CFLAGS+= -fno-stack-protector	# 不需要栈保护
 CFLAGS+= -Werror
 CFLAGS+= -DONIX					# 定义 ONIX
-CFLAGS+= -DONIX_DEBUG			# 定义 ONIX_DEBUG
+CFLAGS+= -DONIX_DEBUG			# 定义 ONIX_DEBUG（内存保护等行为，与日志级别无关）
 CFLAGS+= -DONIX_VERSION='"$(ONIX_VERSION)"' # 定义 ONIX_VERSION
+
+# 日志级别：1=ERROR 2=WARN 3=INFO 4=DEBUG 5=TRACE；可 make ONIX_LOG_LEVEL=5 覆盖
+ifdef USB_BOOT
+ONIX_LOG_LEVEL ?= 3
+else
+ONIX_LOG_LEVEL ?= 4
+endif
+CFLAGS+= -DONIX_LOG_LEVEL=$(ONIX_LOG_LEVEL)
 
 ifdef USB_BOOT
 CFLAGS+= -DONIX_USB_BOOT

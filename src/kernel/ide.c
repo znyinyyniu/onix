@@ -14,7 +14,6 @@
 #include <onix/errno.h>
 #include <onix/pci.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define IDE_TIMEOUT 60000
 

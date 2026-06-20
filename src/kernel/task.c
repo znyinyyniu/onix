@@ -17,7 +17,6 @@
 #include <onix/tty.h>
 #include <onix/fpu.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 extern u32 volatile jiffies;
 extern u32 jiffy;

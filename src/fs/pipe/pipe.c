@@ -8,7 +8,6 @@
 #include <onix/debug.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 static inode_t *pipe_open()
 {

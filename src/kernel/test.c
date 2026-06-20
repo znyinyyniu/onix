@@ -11,7 +11,6 @@
 #include <onix/net.h>
 #include <onix/syscall.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 int sys_test()
 {

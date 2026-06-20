@@ -10,7 +10,6 @@
 #include <onix/timer.h>
 #include <onix/task.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define XHCI_CMD_RING_SIZE 64
 #define XHCI_EVT_RING_SIZE 64
