@@ -4,7 +4,8 @@
 #include <onix/types.h>
 
 #define XHCI_MAX_DEVICES 4
-#define XHCI_MAX_PORTS 8
+#define XHCI_MAX_PORTS 16 // 实体机 xHCI 端口数可达 15，需覆盖全部端口
+#define XHCI_MAX_SLOTS 32 // slot 由控制器递增分配，按 slot 索引的数组须与之对齐
 
 // USB Mass Storage Bulk-Only interface
 #define USB_CLASS_MASS_STORAGE 0x08
@@ -17,7 +18,7 @@ typedef struct xhci_device_t
     u8 address;
     u8 port;
     u8 speed;
-    u8 ep0_mps;
+    u16 ep0_mps;
     u8 ep_in;
     u8 ep_out;
     u16 ep_in_mps;

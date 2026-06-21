@@ -46,8 +46,14 @@
 #define XHCI_PORTSC_PED (1u << 1)
 #define XHCI_PORTSC_PR (1u << 4)
 #define XHCI_PORTSC_PP (1u << 9)
-#define XHCI_PORTSC_SPEED_SHIFT 20
+#define XHCI_PORTSC_SPEED_SHIFT 10 // PORTSC Port Speed 字段位于 bit 13:10
 #define XHCI_PORTSC_SPEED_MASK 0xF
+
+// xHCI 默认 Protocol Speed ID
+#define XHCI_SPEED_FULL 1
+#define XHCI_SPEED_LOW 2
+#define XHCI_SPEED_HIGH 3
+#define XHCI_SPEED_SUPER 4
 
 #define XHCI_USBCMD_RUN (1u << 0)
 #define XHCI_USBCMD_HCRST (1u << 1)
@@ -180,10 +186,10 @@ typedef struct xhci_t
 
     u8 *input_ctx;
     u32 *dcbaap;
-    u8 *dev_ctx[XHCI_MAX_DEVICES + 1];
-    xhci_trb_t *ep_rings[XHCI_MAX_DEVICES + 1][32];
-    u32 ep_enqueue[XHCI_MAX_DEVICES + 1][32];
-    bool ep_cycle[XHCI_MAX_DEVICES + 1][32];
+    u8 *dev_ctx[XHCI_MAX_SLOTS + 1];
+    xhci_trb_t *ep_rings[XHCI_MAX_SLOTS + 1][32];
+    u32 ep_enqueue[XHCI_MAX_SLOTS + 1][32];
+    bool ep_cycle[XHCI_MAX_SLOTS + 1][32];
 } xhci_t;
 
 static xhci_t xhci;
@@ -330,7 +336,7 @@ static err_t xhci_wait_event(xhci_t *hc, u8 expect_type, u8 *slot_out, u8 *ep_ou
 
         if (cc != CC_SUCCESS)
         {
-            LOGK("xHCI event cc %d type %d\n", cc, type);
+            USBLOG("xHCI event cc %d type %d\n", cc, type);
             return -EIO;
         }
 
@@ -411,8 +417,10 @@ static void xhci_init_ep_ring(xhci_t *hc, u8 slot, u8 ep_idx)
 static void xhci_set_ep_ctx(xhci_t *hc, u8 *input, u8 ep_id, u8 type, u16 mps, xhci_trb_t *ring, bool cycle)
 {
     u64 dequeue = get_paddr((u32)ring) | (cycle ? 1u : 0u);
-    ep_ctx_set_dword(input, hc->ctx_size, ep_id, 0, (3u << 1));
-    u32 ep_info2 = (type << 3) | ((u32)mps << 16);
+    // dword0：输入上下文里 EP State 等字段应为 0
+    ep_ctx_set_dword(input, hc->ctx_size, ep_id, 0, 0);
+    // dword1：CErr(2:1)=3、EP Type(5:3)、MaxPacketSize(31:16)
+    u32 ep_info2 = (3u << 1) | (type << 3) | ((u32)mps << 16);
     ep_ctx_set_dword(input, hc->ctx_size, ep_id, 1, ep_info2);
     ep_ctx_set_dword(input, hc->ctx_size, ep_id, 2, (u32)dequeue);
     ep_ctx_set_dword(input, hc->ctx_size, ep_id, 3, (u32)(dequeue >> 32));
@@ -428,11 +436,19 @@ static void xhci_set_slot_ctx(xhci_t *hc, u8 *input, u8 port, u8 speed, u8 num_c
         slot_ctx_set_dword(input, hc->ctx_size, 3, address);
 }
 
-static u8 xhci_ep0_mps(u8 speed)
+static u16 xhci_ep0_mps(u8 speed)
 {
-    if (speed == 2)
+    switch (speed)
+    {
+    case XHCI_SPEED_SUPER:
+        return 512;
+    case XHCI_SPEED_HIGH:
         return 64;
-    return 8;
+    case XHCI_SPEED_LOW:
+        return 8;
+    default: // Full speed 及未知速度，先用 64，取到设备描述符后再校正
+        return 64;
+    }
 }
 
 static err_t xhci_cmd_enable_slot(xhci_t *hc, u8 *slot_out)
@@ -613,6 +629,9 @@ static err_t xhci_port_reset(xhci_t *hc, int port)
         if (timer_is_expires(expires))
             return -ETIME;
     }
+
+    // 复位完成后设备需要恢复时间，之后才能接受寻址
+    task_sleep(10);
     return EOK;
 }
 
@@ -657,16 +676,17 @@ static err_t xhci_enumerate_port(xhci_t *hc, int port)
 
     xhci_init_ep_ring(hc, slot, 1);
 
-    u8 ep0_mps = xhci_ep0_mps(speed);
+    u16 ep0_mps = xhci_ep0_mps(speed);
     u8 *input = hc->input_ctx;
     memset(input, 0, PAGE_SIZE);
     input_ctx_add(input, (1u << 0) | (1u << 1));
     xhci_set_slot_ctx(hc, input, port, speed, 1, 0);
     xhci_set_ep_ctx(hc, input, 1, 4, ep0_mps, hc->ep_rings[slot][1], hc->ep_cycle[slot][1]);
 
-    if (xhci_cmd_address_device(hc, slot, input, true) < EOK)
+    // 标准单步寻址：BSR=0，USB 地址由控制器分配（该字段是只读输入，软件不写）
+    if (xhci_cmd_address_device(hc, slot, input, false) < EOK)
     {
-        USBLOG("xHCI address device (BSR) failed on port %d\n", port);
+        USBLOG("xHCI address device failed on port %d\n", port);
         return -EIO;
     }
 
@@ -676,6 +696,7 @@ static err_t xhci_enumerate_port(xhci_t *hc, int port)
     xdev->port = port;
     xdev->speed = speed;
     xdev->ep0_mps = ep0_mps;
+    xdev->address = slot;
 
     usb_device_desc_t dev_desc;
     if (xhci_get_descriptor(xdev, USB_DT_DEVICE, 0, &dev_desc, 8) < EOK)
@@ -684,20 +705,12 @@ static err_t xhci_enumerate_port(xhci_t *hc, int port)
         return -EIO;
     }
 
-    ep0_mps = dev_desc.max_packet;
-    xdev->ep0_mps = ep0_mps;
-
-    u8 address = (u8)(hc->device_count + 1);
-    memset(input, 0, PAGE_SIZE);
-    input_ctx_add(input, (1u << 0) | (1u << 1));
-    xhci_set_slot_ctx(hc, input, port, speed, 1, address);
-    xhci_set_ep_ctx(hc, input, 1, 4, ep0_mps, hc->ep_rings[slot][1], hc->ep_cycle[slot][1]);
-    if (xhci_cmd_address_device(hc, slot, input, false) < EOK)
-    {
-        USBLOG("xHCI address device failed on port %d\n", port);
-        return -EIO;
-    }
-    xdev->address = address;
+    // 记录真实 ep0 max packet（SuperSpeed 的 bMaxPacketSize0 是以 2 为底的指数）；
+    // 控制端点上下文用按速度默认值即可满足枚举期控制读取，无需重新编程
+    if (speed == XHCI_SPEED_SUPER)
+        xdev->ep0_mps = (u16)(1u << dev_desc.max_packet);
+    else if (dev_desc.max_packet)
+        xdev->ep0_mps = dev_desc.max_packet;
 
     u8 config_buf[256];
     memset(config_buf, 0, sizeof(config_buf));
@@ -787,7 +800,7 @@ static err_t xhci_enumerate_port(xhci_t *hc, int port)
 
     memset(input, 0, PAGE_SIZE);
     input_ctx_add(input, add_flags);
-    xhci_set_slot_ctx(hc, input, port, speed, num_ctx, address);
+    xhci_set_slot_ctx(hc, input, port, speed, num_ctx, xdev->address);
     xhci_set_ep_ctx(hc, input, ep_in_id, 6, ep_in_mps, hc->ep_rings[slot][ep_in_id], hc->ep_cycle[slot][ep_in_id]);
     xhci_set_ep_ctx(hc, input, ep_out_id, 2, ep_out_mps, hc->ep_rings[slot][ep_out_id], hc->ep_cycle[slot][ep_out_id]);
 
@@ -804,7 +817,7 @@ static err_t xhci_enumerate_port(xhci_t *hc, int port)
     }
 
     USBLOG("USB device addr %d slot %d ep_in 0x%x ep_out 0x%x\n",
-           address, slot, ep_in, ep_out);
+           xdev->address, slot, ep_in, ep_out);
 
     hc->device_count++;
     return EOK;
