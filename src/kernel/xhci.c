@@ -63,6 +63,26 @@
 #define USB_DT_DEVICE 0x01
 #define USB_DT_CONFIG 0x02
 
+// 扩展能力（xECP）位于 HCCPARAMS1[31:16]，单位为 dword
+#define XHCI_HCCPARAMS1 0x10
+#define XHCI_ECAP_ID_LEGACY 1 // USB Legacy Support 能力 ID
+
+// USBLEGSUP / USBLEGCTLSTS（相对扩展能力首址）
+#define XHCI_USBLEGSUP 0x00
+#define XHCI_USBLEGCTLSTS 0x04
+#define XHCI_LEGSUP_BIOS_OWNED (1u << 16)
+#define XHCI_LEGSUP_OS_OWNED (1u << 24)
+// 关闭固件 SMI 触发源（与 Linux xhci 一致）
+#define XHCI_LEGCTL_DISABLE_SMI ((0x7u << 1) | (0xFFu << 5) | (0x7u << 17))
+#define XHCI_LEGCTL_SMI_EVENTS (0x7u << 29)
+
+// Intel PCH xHCI 端口路由寄存器（PCI 配置空间）
+#define INTEL_VENDOR_ID 0x8086
+#define INTEL_XUSB2PR 0xD0    // USB2 端口路由到 xHCI
+#define INTEL_USB2PRM 0xD4    // USB2 端口路由掩码
+#define INTEL_USB3_PSSEN 0xD8 // USB3 超速使能
+#define INTEL_USB3PRM 0xDC    // USB3 端口路由掩码
+
 typedef struct xhci_trb_t
 {
     u32 parameter_low;
@@ -154,6 +174,9 @@ typedef struct xhci_t
 
     xhci_device_t devices[XHCI_MAX_DEVICES];
     int device_count;
+
+    u32 max_scratchpad;
+    u64 *scratchpad_array;
 
     u8 *input_ctx;
     u32 *dcbaap;
@@ -596,22 +619,37 @@ static err_t xhci_port_reset(xhci_t *hc, int port)
 static err_t xhci_enumerate_port(xhci_t *hc, int port)
 {
     u32 portsc = minl(xhci_port(hc, port));
+
+    // 实体机端口默认可能未上电，先打开端口电源再判断连接状态
+    if (!(portsc & XHCI_PORTSC_PP))
+    {
+        moutl(xhci_port(hc, port), portsc | XHCI_PORTSC_PP);
+        task_sleep(20);
+        portsc = minl(xhci_port(hc, port));
+    }
+
     if (!(portsc & XHCI_PORTSC_CCS))
         return -ENODEV;
 
-    LOGK("xHCI port %d connected\n", port);
+    USBLOG("xHCI port %d connected\n", port);
 
     if (xhci_port_reset(hc, port) < EOK)
+    {
+        USBLOG("xHCI port %d reset failed\n", port);
         return -EIO;
+    }
 
     portsc = minl(xhci_port(hc, port));
     u8 speed = (portsc >> XHCI_PORTSC_SPEED_SHIFT) & XHCI_PORTSC_SPEED_MASK;
 
     u8 slot = 0;
     if (xhci_cmd_enable_slot(hc, &slot) < EOK)
+    {
+        USBLOG("xHCI enable slot failed on port %d\n", port);
         return -EIO;
+    }
 
-    LOGK("xHCI slot %d enabled on port %d speed %d\n", slot, port, speed);
+    USBLOG("xHCI slot %d enabled on port %d speed %d\n", slot, port, speed);
 
     hc->dev_ctx[slot] = (u8 *)alloc_kpage(1);
     memset(hc->dev_ctx[slot], 0, PAGE_SIZE);
@@ -628,7 +666,7 @@ static err_t xhci_enumerate_port(xhci_t *hc, int port)
 
     if (xhci_cmd_address_device(hc, slot, input, true) < EOK)
     {
-        LOGK("xHCI address device (BSR) failed on port %d\n", port);
+        USBLOG("xHCI address device (BSR) failed on port %d\n", port);
         return -EIO;
     }
 
@@ -642,7 +680,7 @@ static err_t xhci_enumerate_port(xhci_t *hc, int port)
     usb_device_desc_t dev_desc;
     if (xhci_get_descriptor(xdev, USB_DT_DEVICE, 0, &dev_desc, 8) < EOK)
     {
-        LOGK("xHCI get device descriptor failed on port %d\n", port);
+        USBLOG("xHCI get device descriptor failed on port %d\n", port);
         return -EIO;
     }
 
@@ -655,13 +693,19 @@ static err_t xhci_enumerate_port(xhci_t *hc, int port)
     xhci_set_slot_ctx(hc, input, port, speed, 1, address);
     xhci_set_ep_ctx(hc, input, 1, 4, ep0_mps, hc->ep_rings[slot][1], hc->ep_cycle[slot][1]);
     if (xhci_cmd_address_device(hc, slot, input, false) < EOK)
+    {
+        USBLOG("xHCI address device failed on port %d\n", port);
         return -EIO;
+    }
     xdev->address = address;
 
     u8 config_buf[256];
     memset(config_buf, 0, sizeof(config_buf));
     if (xhci_get_descriptor(xdev, USB_DT_CONFIG, 0, config_buf, 9) < EOK)
+    {
+        USBLOG("xHCI get config descriptor failed on port %d\n", port);
         return -EIO;
+    }
 
     usb_config_desc_t *cfg = (usb_config_desc_t *)config_buf;
     u16 cfg_len = cfg->total_len;
@@ -694,7 +738,7 @@ static err_t xhci_enumerate_port(xhci_t *hc, int port)
                 iface->protocol == USB_PROTO_BOT)
             {
                 found_ms = true;
-                LOGK("USB Mass Storage interface found\n");
+                USBLOG("USB Mass Storage interface found\n");
             }
         }
         else if (type == 0x05 && found_ms)
@@ -726,7 +770,7 @@ static err_t xhci_enumerate_port(xhci_t *hc, int port)
 
     if (!found_ms || !ep_in || !ep_out)
     {
-        LOGK("port %d: not a BOT mass storage device\n", port);
+        USBLOG("port %d: not a BOT mass storage device\n", port);
         return -ENODEV;
     }
 
@@ -748,16 +792,95 @@ static err_t xhci_enumerate_port(xhci_t *hc, int port)
     xhci_set_ep_ctx(hc, input, ep_out_id, 2, ep_out_mps, hc->ep_rings[slot][ep_out_id], hc->ep_cycle[slot][ep_out_id]);
 
     if (xhci_cmd_configure_ep(hc, slot, input) < EOK)
+    {
+        USBLOG("xHCI configure ep failed on port %d\n", port);
         return -EIO;
+    }
 
     if (xhci_set_configuration(xdev, cfg->config_value) < EOK)
+    {
+        USBLOG("xHCI set configuration failed on port %d\n", port);
         return -EIO;
+    }
 
-    LOGK("USB device addr %d slot %d ep_in 0x%x ep_out 0x%x\n",
-         address, slot, ep_in, ep_out);
+    USBLOG("USB device addr %d slot %d ep_in 0x%x ep_out 0x%x\n",
+           address, slot, ep_in, ep_out);
 
     hc->device_count++;
     return EOK;
+}
+
+// BIOS/UEFI -> OS 控制权交接。
+// 实体机上固件（SMM）持有 xHCI 控制器，必须在复位前请求所有权并关闭固件 SMI，
+// 否则 OS 复位/运行控制器会与固件冲突，导致端口枚举不到设备。
+// QEMU 无固件占用，所以缺少此步骤时只在实体机暴露。
+static void xhci_takeover_bios(xhci_t *hc)
+{
+    u32 hccparams1 = minl(hc->membase + XHCI_HCCPARAMS1);
+    u32 xecp = (hccparams1 >> 16) & 0xFFFF;
+    if (!xecp)
+    {
+        LOGK("xHCI no extended capabilities\n");
+        return;
+    }
+
+    u32 addr = hc->membase + (xecp << 2);
+    while (true)
+    {
+        u32 cap = minl(addr);
+        u8 id = cap & 0xFF;
+        u8 next = (cap >> 8) & 0xFF;
+
+        if (id == XHCI_ECAP_ID_LEGACY)
+        {
+            u32 legsup = minl(addr + XHCI_USBLEGSUP);
+            if (legsup & XHCI_LEGSUP_BIOS_OWNED)
+            {
+                // 请求 OS 所有权，等待固件释放
+                moutl(addr + XHCI_USBLEGSUP, legsup | XHCI_LEGSUP_OS_OWNED);
+                int expires = timer_expire_jiffies(1000);
+                while (minl(addr + XHCI_USBLEGSUP) & XHCI_LEGSUP_BIOS_OWNED)
+                {
+                    if (timer_is_expires(expires))
+                    {
+                        LOGK("xHCI BIOS handoff timeout, forcing ownership\n");
+                        break;
+                    }
+                }
+            }
+
+            // 关闭固件 SMI 触发源，并写 1 清除 SMI 状态位
+            u32 ctlsts = minl(addr + XHCI_USBLEGCTLSTS);
+            ctlsts &= ~XHCI_LEGCTL_DISABLE_SMI;
+            ctlsts |= XHCI_LEGCTL_SMI_EVENTS;
+            moutl(addr + XHCI_USBLEGCTLSTS, ctlsts);
+
+            LOGK("xHCI BIOS handoff complete\n");
+            return;
+        }
+
+        if (!next)
+            break;
+        addr += (next << 2);
+    }
+}
+
+// Intel PCH 默认把 USB2 端口路由给 EHCI，把 USB3 端口置于非超速模式。
+// 需要将端口切换到 xHCI，否则插在 USB 口上的设备不会出现在 xHCI 的 PORTSC 上。
+static void xhci_intel_port_route(pci_device_t *device)
+{
+    if (device->vendorid != INTEL_VENDOR_ID)
+        return;
+
+    u32 ports;
+
+    ports = pci_inl(device->bus, device->dev, device->func, INTEL_USB3PRM);
+    pci_outl(device->bus, device->dev, device->func, INTEL_USB3_PSSEN, ports);
+
+    ports = pci_inl(device->bus, device->dev, device->func, INTEL_USB2PRM);
+    pci_outl(device->bus, device->dev, device->func, INTEL_XUSB2PR, ports);
+
+    LOGK("xHCI Intel ports routed to xHCI\n");
 }
 
 static void xhci_reset_controller(xhci_t *hc)
@@ -823,6 +946,23 @@ static void xhci_init_rings(xhci_t *hc)
 
     hc->dcbaap = (u32 *)alloc_kpage(1);
     memset(hc->dcbaap, 0, PAGE_SIZE);
+
+    // 实体机 xHCI 通常要求 Scratchpad Buffer Array：
+    // 分配 max_scratchpad 个物理页，把各页物理地址填入 array，
+    // 再将 array 物理地址写入 DCBAAP[0]（DCBA 槽 0 专用于 scratchpad）。
+    if (hc->max_scratchpad > 0)
+    {
+        hc->scratchpad_array = (u64 *)alloc_kpage(1);
+        memset(hc->scratchpad_array, 0, PAGE_SIZE);
+        for (u32 i = 0; i < hc->max_scratchpad; i++)
+        {
+            u32 page = (u32)alloc_kpage(1);
+            memset((void *)page, 0, PAGE_SIZE);
+            hc->scratchpad_array[i] = get_paddr(page);
+        }
+        ((u64 *)hc->dcbaap)[0] = get_paddr((u32)hc->scratchpad_array);
+    }
+
     moutl(xhci_op(hc, 0x30), get_paddr((u32)hc->dcbaap));
     moutl(xhci_op(hc, 0x34), 0);
 
@@ -848,7 +988,7 @@ void xhci_init(void)
     pci_device_t *device = pci_find_device_by_class(PCI_CLASS_SERIAL_USB_XHCI);
     if (!device)
     {
-        LOGK("xHCI controller not found\n");
+        USBLOG("xHCI controller not found\n");
         return;
     }
 
@@ -859,7 +999,7 @@ void xhci_init(void)
     err_t ret = pci_map_mem_bar(device, &membar);
     if (ret != EOK || membar.iobase == 0)
     {
-        LOGK("xHCI MMIO BAR not available\n");
+        USBLOG("xHCI MMIO BAR not available\n");
         return;
     }
 
@@ -880,11 +1020,21 @@ void xhci_init(void)
     u32 hccparams1 = minl(hc->membase + 0x10);
     hc->ctx_size = (hccparams1 & (1u << 2)) ? 64 : 32;
 
+    // HCSPARAMS2(cap 偏移 0x08)：Max Scratchpad Buffers = Hi[31:27] | Lo[25:21]
+    u32 hcsparams2 = minl(hc->membase + 0x08);
+    u32 sp_hi = (hcsparams2 >> 21) & 0x1F;
+    u32 sp_lo = (hcsparams2 >> 27) & 0x1F;
+    hc->max_scratchpad = (sp_hi << 5) | sp_lo;
+
     u32 pagesize = minl(hc->op_base + 0x08);
     hc->page_size = 1u << (pagesize + 12);
 
-    LOGK("xHCI slots %d ports %d ctx %d page 0x%x\n",
-         hc->max_slots, hc->max_ports, hc->ctx_size, hc->page_size);
+    USBLOG("xHCI slots %d ports %d ctx %d scratch %d\n",
+           hc->max_slots, hc->max_ports, hc->ctx_size, hc->max_scratchpad);
+
+    // 实体机必须先从固件接管控制器，再做端口路由，最后才复位/运行
+    xhci_takeover_bios(hc);
+    xhci_intel_port_route(device);
 
     xhci_reset_controller(hc);
     xhci_init_rings(hc);
@@ -893,6 +1043,9 @@ void xhci_init(void)
     cmd |= XHCI_USBCMD_RUN | XHCI_USBCMD_INTE;
     moutl(xhci_op(hc, 0x00), cmd);
 
+    // 控制器启动后端口连接状态需要时间稳定（实体机更明显）
+    task_sleep(100);
+
     for (int port = 1; port <= hc->max_ports && port <= XHCI_MAX_PORTS; port++)
     {
         if (hc->device_count >= XHCI_MAX_DEVICES)
@@ -900,5 +1053,5 @@ void xhci_init(void)
         xhci_enumerate_port(hc, port);
     }
 
-    LOGK("xHCI init done, %d device(s)\n", hc->device_count);
+    USBLOG("xHCI init done, %d device(s)\n", hc->device_count);
 }

@@ -122,7 +122,7 @@ static err_t usb_storage_read_capacity(usb_disk_t *disk)
 
     disk->total_lba = blocks;
     disk->sector_size = block_len;
-    LOGK("USB disk capacity %d sectors\n", disk->total_lba);
+    USBLOG("USB disk capacity %d sectors\n", disk->total_lba);
     return EOK;
 }
 
@@ -158,12 +158,12 @@ err_t usb_storage_write_sectors(usb_disk_t *disk, void *buf, u8 count, idx_t lba
 
 void usb_storage_init(void)
 {
-    LOGK("USB storage init...\n");
+    USBLOG("USB storage init...\n");
 
     int count = xhci_device_count();
     if (!count)
     {
-        LOGK("No USB devices found\n");
+        USBLOG("No USB devices found\n");
         return;
     }
 
@@ -181,12 +181,15 @@ void usb_storage_init(void)
         disk->sector_size = SECTOR_SIZE;
 
         if (usb_storage_read_capacity(disk) < EOK)
+        {
+            USBLOG("USB disk %d read capacity failed\n", disk_idx);
             continue;
+        }
 
         usb_gpt_install(disk);
         disk_idx++;
     }
 
     usb_install();
-    LOGK("USB storage init done, %d disk(s)\n", disk_idx);
+    USBLOG("USB storage init done, %d disk(s)\n", disk_idx);
 }

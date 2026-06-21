@@ -49,4 +49,14 @@ void debugk(char *file, int line, const char *fmt, ...);
 #define LOG_TRACE(fmt, args...) ((void)0)
 #endif
 
+// USB 引导期里程碑日志：USB 启动构建下直接走 printk（经帧缓冲上屏，
+// 不受 ONIX_LOG_LEVEL 裁剪，便于实体机无串口时定位失败阶段）；
+// 普通构建退化为 LOGK，零影响。
+#ifdef ONIX_USB_BOOT
+int printk(const char *fmt, ...);
+#define USBLOG(fmt, args...) printk(fmt, ##args)
+#else
+#define USBLOG(fmt, args...) LOGK(fmt, ##args)
+#endif
+
 #endif

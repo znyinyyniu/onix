@@ -74,7 +74,7 @@ void usb_gpt_install(usb_disk_t *disk)
     int count = gpt_read_partitions(disk, usb_disk_block_read, parts, USB_PART_NR);
     if (!count)
     {
-        LOGK("USB disk %s: no GPT partitions\n", disk->name);
+        USBLOG("USB disk %s: no GPT partitions\n", disk->name);
         return;
     }
 
@@ -87,7 +87,7 @@ void usb_gpt_install(usb_disk_t *disk)
         part->start = (u32)info->first_lba;
         part->count = info->sector_count;
         part->index = info->index;
-        LOGK("USB part %s start %d count %d\n", part->name, part->start, part->count);
+        USBLOG("USB part %s start %d count %d\n", part->name, part->start, part->count);
     }
 
     if (usb_disk_count < USB_DISK_NR)

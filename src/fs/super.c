@@ -103,6 +103,8 @@ static void mount_root()
     device = device_find(DEV_USB_PART, 1);
     if (!device)
         device = device_find(DEV_USB_PART, 0);
+    if (!device)
+        printk("mount_root: no DEV_USB_PART found (USB enum failed)\n");
 #else
     device = device_find(DEV_IDE_PART, 0);
     if (!device)
