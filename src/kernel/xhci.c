@@ -157,39 +157,48 @@ typedef struct usb_endpoint_desc_t
     u8 interval;
 } _packed usb_endpoint_desc_t;
 
+// xHCI 主机控制器全局状态（MMIO 基址、Ring、设备上下文）
 typedef struct xhci_t
 {
-    u32 membase;
-    u32 op_base;
-    u32 db_base;
-    u32 rt_base;
-    u8 caplen;
-    u8 max_slots;
-    u8 max_ports;
-    u8 ctx_size;
-    u32 page_size;
+    // --- MMIO 寄存器窗口（物理地址，经 map_area 后可 minl/moutl 访问）---
+    u32 membase;  // MEM BAR 基址
+    u32 op_base;  // Operational Registers 基址
+    u32 db_base;  // Doorbell Array 基址
+    u32 rt_base;  // Runtime Registers 基址
 
+    // --- 从 Capability 寄存器读出的控制器能力 ---
+    u8 caplen;       // Capability 区长度（字节）
+    u8 max_slots;    // 最大 Device Slot 数
+    u8 max_ports;    // 物理 USB 端口数
+    u8 ctx_size;     // Device/Endpoint Context 大小（32 或 64 字节）
+    u32 page_size;   // xHCI 要求的内存页大小
+
+    // --- Command Ring：驱动写 TRB，硬件读，管理命令（Enable Slot 等）---
     xhci_trb_t *cmd_ring;
-    u32 cmd_enqueue;
-    bool cmd_cycle;
+    u32 cmd_enqueue; // 下一个待写入的 TRB 索引
+    bool cmd_cycle;  // Command Ring 当前 cycle bit
 
+    // --- Event Ring：硬件写 TRB，驱动读，命令/传输完成通知 ---
     xhci_trb_t *event_ring;
-    u32 event_dequeue;
-    bool event_cycle;
-    xhci_erst_t *erst;
+    u32 event_dequeue; // 下一个待处理的 Event TRB 索引
+    bool event_cycle;  // Event Ring 当前 cycle bit
+    xhci_erst_t *erst; // Event Ring Segment Table（描述 event_ring 物理地址与长度）
 
+    // --- 已枚举 USB 设备（供上层 usb_storage 等使用）---
     xhci_device_t devices[XHCI_MAX_DEVICES];
     int device_count;
 
+    // --- Scratchpad Buffer（实体机 xHCI 常需，物理页地址填入 dcbaap[0]）---
     u32 max_scratchpad;
     u64 *scratchpad_array;
 
-    u8 *input_ctx;
-    u32 *dcbaap;
-    u8 *dev_ctx[XHCI_MAX_SLOTS + 1];
-    xhci_trb_t *ep_rings[XHCI_MAX_SLOTS + 1][32];
-    u32 ep_enqueue[XHCI_MAX_SLOTS + 1][32];
-    bool ep_cycle[XHCI_MAX_SLOTS + 1][32];
+    // --- Device Context：每个 slot 的硬件上下文与端点 Transfer Ring ---
+    u8 *input_ctx;                              // 提交 Address/Configure 命令用的 Input Context
+    u32 *dcbaap;                                // Device Context Base Address Array
+    u8 *dev_ctx[XHCI_MAX_SLOTS + 1];            // 各 slot 的 Device Context（含 Endpoint Context）
+    xhci_trb_t *ep_rings[XHCI_MAX_SLOTS + 1][32]; // 各 slot 各端点的 Transfer Ring
+    u32 ep_enqueue[XHCI_MAX_SLOTS + 1][32];   // Transfer Ring 写指针
+    bool ep_cycle[XHCI_MAX_SLOTS + 1][32];      // Transfer Ring 当前 cycle bit
 } xhci_t;
 
 static xhci_t xhci;
