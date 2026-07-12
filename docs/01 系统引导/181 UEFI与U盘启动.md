@@ -3,7 +3,7 @@
 - Onix 目前通过传统 BIOS 启动（自研 bootloader 或 GRUB ISO），根文件系统只能从 IDE 磁盘挂载。不支持 USB，因此无法在实体机上从 U 盘运行系统。
 - 目标平台（Intel Core i5-5200U、USB 3.0 口引导）需要 UEFI + GPT + xHCI，以便在 GRUB 加载内核后，从同一块 U 盘上的可写 Minix 根分区挂载并运行完整系统。
 
-## 变更内容
+## 更新内容
 
 - 新增构建目标，产出可用 `dd` 写入 U 盘的 GPT UEFI 磁盘镜像：FAT32 ESP（GRUB + 内核）+ Minix 根分区
 - 实现 xHCI 主机控制器驱动，支持 Intel USB 3.0（目标硬件上的主要引导路径）
@@ -36,3 +36,13 @@
 7. 重新打开ide，打开c源码文件，clangd会开始生成索引，函数定义的导航跳转也生效了
 
 ### 新增构建目标，产出可用 `dd` 写入 U 盘的 GPT UEFI 磁盘镜像：FAT32 ESP（GRUB + 内核）+ Minix 根分区
+
+执行`make usb-image`，将会在`build`目录生成`onix_usb.img`文件
+
+1. 检查 `grub-install`,`grub-mkimage`,`multiboot2.mod`,`parted`,`qemu-system-x86_64` 这些工具是否已安装
+2. 生成磁盘镜像文件，并以gpt分区格式进行分区
+3. 将grub安装到ESP分区，支持UEFI固件启动
+4. 将grub配置文件复制到ESP分区
+
+执行`make qemu-usb`，使用qemu模拟`通过UEFI固件加载u盘中的grub来启动系统`，应看到如下图的grub启动菜单出现
+![qemu-usb启动菜单](images/qemu-usb启动菜单.png)
