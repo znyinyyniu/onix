@@ -5,11 +5,11 @@
 
 ## 更新内容
 
-- 新增构建目标，产出可用 `dd` 写入 U 盘的 GPT UEFI 磁盘镜像：FAT32 ESP（GRUB + 内核）+ Minix 根分区
-- 实现 xHCI 主机控制器驱动，支持 Intel USB 3.0（目标硬件上的主要引导路径）
-- 实现 USB Mass Storage 类（Bulk-Only Transport），并注册 USB 块设备
-- 为 USB 块设备实现 GPT 分区解析（现有 `ide_part_init` 仅支持 MBR，会误读 GPT 磁盘上的保护性 MBR）
-- 调整根挂载逻辑：在纯 USB 单盘配置下，从 USB GPT 第二分区挂载 Minix 根文件系统
+1. 新增构建目标，产出可用 `dd` 写入 U 盘的 GPT UEFI 磁盘镜像：FAT32 ESP（GRUB + 内核）+ Minix 根分区
+2. 实现 xHCI 主机控制器驱动，支持 Intel USB 3.0（目标硬件上的主要引导路径）
+3. 实现 USB Mass Storage 类（Bulk-Only Transport），并注册 USB 块设备
+4. 为 USB 块设备实现 GPT 分区解析（现有 `ide_part_init` 仅支持 MBR，会误读 GPT 磁盘上的保护性 MBR）
+5. 调整根挂载逻辑：在纯 USB 单盘配置下，从 USB GPT 第二分区挂载 Minix 根文件系统
 
 ## 具体任务
 
@@ -46,3 +46,6 @@
 
 执行`make qemu-usb`，使用qemu模拟`通过UEFI固件加载u盘中的grub来启动系统`，应看到如下图的grub启动菜单出现
 ![qemu-usb启动菜单](images/qemu-usb启动菜单.png)
+
+
+源代码位置：https://github.com/znyinyyniu/onix

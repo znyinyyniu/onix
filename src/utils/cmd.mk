@@ -47,3 +47,24 @@ $(BUILD)/master.vmdk: $(BUILD)/master.img
 
 .PHONY:vmdk
 vmdk: $(BUILD)/master.vmdk
+
+
+# UEFI U 盘启动（OVMF）
+OVMF:= /usr/share/OVMF/OVMF_CODE.fd
+
+# U 盘 UEFI 冒烟专用：x86_64 QEMU + OVMF（64 位固件），无网卡、无声卡，不依赖 tap0
+QEMU_USB_BASE:= qemu-system-x86_64 -m 256M
+QEMU_USB_BASE+= -vga std # GRUB/内核帧缓冲输出到 QEMU 窗口
+QEMU_USB_BASE+= -rtc base=localtime
+QEMU_USB_BASE+= -serial stdio
+QEMU_USB_BASE+= -monitor none
+
+QEMU_USB:= $(QEMU_USB_BASE)
+QEMU_USB+= -bios $(OVMF)
+QEMU_USB+= -drive file=$(BUILD)/onix_usb.img,format=raw,if=virtio
+QEMU_USB+= -boot order=c
+
+.PHONY: qemu-usb
+qemu-usb: $(BUILD)/onix_usb.img
+	test -f $(OVMF) || test -f /usr/share/OVMF/OVMF.fd || (echo "需要: sudo apt install ovmf" && false)
+	$(QEMU_USB)

@@ -203,7 +203,12 @@ include utils/image.mk
 include utils/cdrom.mk
 include utils/net.mk
 include utils/cmd.mk
+include utils/usb-efi.mk
+
+.PHONY: usb-image
+usb-image:
+	$(MAKE) USB_BOOT=1 $(BUILD)/onix_usb.img
 
 .PHONY: clean
 clean:
-	rm -rf $(BUILD)
+	rm -rf $(BUILD)/*
