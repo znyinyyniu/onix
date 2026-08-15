@@ -20,7 +20,9 @@ check-usb-host-deps:
 		(echo "缺少 qemu-system-x86_64，请执行: sudo apt install qemu-system-x86" && exit 1)
 	@echo "USB 镜像宿主依赖检查通过"
 
-$(BUILD)/onix_usb.img: $(SRC)/utils/grub-uefi.cfg
+$(BUILD)/onix_usb.img: $(BUILD)/kernel.bin \
+	$(SRC)/utils/grub-uefi.cfg
+
 	$(MAKE) check-usb-host-deps
 
 	rm -f $@
@@ -45,6 +47,7 @@ $(BUILD)/onix_usb.img: $(SRC)/utils/grub-uefi.cfg
 		--no-nvram \
 		$(USB_LOOP)
 
+	sudo cp $(BUILD)/kernel.bin $(USB_ESP_MNT)/boot/kernel.bin
 	sudo cp $(SRC)/utils/grub-uefi.cfg $(USB_ESP_MNT)/boot/grub/grub.cfg
 
 	sudo umount $(USB_ESP_MNT)

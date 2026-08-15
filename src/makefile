@@ -19,6 +19,18 @@ CFLAGS+= -DONIX					# 定义 ONIX
 CFLAGS+= -DONIX_DEBUG			# 定义 ONIX_DEBUG
 CFLAGS+= -DONIX_VERSION='"$(ONIX_VERSION)"' # 定义 ONIX_VERSION
 
+# 日志级别：1=ERROR 2=WARN 3=INFO 4=DEBUG 5=TRACE；可 make ONIX_LOG_LEVEL=5 覆盖
+ifdef USB_BOOT
+ONIX_LOG_LEVEL ?= 4
+else
+ONIX_LOG_LEVEL ?= 4
+endif
+CFLAGS+= -DONIX_LOG_LEVEL=$(ONIX_LOG_LEVEL)
+
+ifdef USB_BOOT
+CFLAGS+= -DONIX_USB_BOOT
+endif
+
 CFLAGS:=$(strip ${CFLAGS})
 
 DEBUG:= -g
@@ -139,6 +151,7 @@ $(BUILD)/kernel.raw.bin: \
 	$(BUILD)/kernel/fpu.o \
 	$(BUILD)/kernel/test.o \
 	$(BUILD)/kernel/e1000.o \
+	$(BUILD)/kernel/xhci.o \
 	$(BUILD)/net/pbuf.o \
 	$(BUILD)/net/chksum.o \
 	$(BUILD)/net/netif.o \
