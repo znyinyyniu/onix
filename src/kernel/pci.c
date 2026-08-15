@@ -7,7 +7,6 @@
 #include <onix/list.h>
 #include <onix/arena.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define PCI_CONF_ADDR 0xCF8
 #define PCI_CONF_DATA 0xCFC

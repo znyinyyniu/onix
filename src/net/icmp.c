@@ -8,7 +8,6 @@
 #include <onix/assert.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 // ICMP 查询响应
 static err_t icmp_echo_reply(netif_t *netif, pbuf_t *pbuf)

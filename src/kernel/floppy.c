@@ -15,7 +15,6 @@
 #include <onix/isa.h>
 #include <onix/timer.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define FDT_NONE 0
 #define FDT_144M 4

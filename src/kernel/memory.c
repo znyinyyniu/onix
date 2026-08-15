@@ -11,8 +11,6 @@
 #include <onix/fs.h>
 #include <onix/printk.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
-// #define LOGK(fmt, args...)
 
 #ifdef ONIX_DEBUG
 #define USER_MEMORY true

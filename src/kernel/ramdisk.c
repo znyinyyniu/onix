@@ -8,7 +8,6 @@
 
 #define SECTOR_SIZE 512
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define RAMDISK_NR 4
 

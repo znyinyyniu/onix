@@ -8,7 +8,6 @@
 #include <onix/task.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define BUFFER_DESC_NR 3 // 描述符数量 1024 2048 4096
 

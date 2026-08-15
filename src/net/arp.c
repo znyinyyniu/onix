@@ -9,7 +9,6 @@
 #include <onix/assert.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 // ARP 缓存队列
 static list_t arp_entry_list;

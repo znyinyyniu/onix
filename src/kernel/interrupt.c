@@ -6,8 +6,6 @@
 #include <onix/io.h>
 #include <onix/assert.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
-// #define LOGK(fmt, args...)
 
 #define ENTRY_SIZE 0x30
 

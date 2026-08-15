@@ -14,7 +14,6 @@
 #include <onix/errno.h>
 #include <onix/stat.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define BLOCK_SIZE 2048
 

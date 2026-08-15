@@ -6,7 +6,6 @@
 #include <onix/arena.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 static device_t devices[DEVICE_NR]; // 设备数组
 

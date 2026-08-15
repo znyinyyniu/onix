@@ -10,7 +10,6 @@
 #include <onix/stdio.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define COM1_IOBASE 0x3F8 // 串口 1 基地址
 #define COM2_IOBASE 0x2F8 // 串口 2 基地址

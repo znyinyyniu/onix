@@ -8,7 +8,6 @@
 #include <onix/assert.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 err_t ip_input(netif_t *netif, pbuf_t *pbuf)
 {

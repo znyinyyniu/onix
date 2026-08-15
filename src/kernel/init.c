@@ -49,6 +49,9 @@ extern void floppy_init();
 extern void ramdisk_init();
 extern void sb16_init();
 extern void e1000_init();
+#ifdef ONIX_USB_BOOT
+extern void xhci_init();
+#endif
 
 extern void buffer_init();
 extern void file_init();
@@ -71,10 +74,16 @@ void init_thread()
 
     ramdisk_init(); // 初始化内存虚拟磁盘
 
-    ide_init();    // 初始化 IDE 设备
+#ifdef ONIX_USB_BOOT
+    xhci_init();
+#else
+    ide_init(); // 初始化 IDE 设备
+#endif
     sb16_init();   // 初始化声霸卡
     floppy_init(); // 初始化软盘
+#ifndef ONIX_USB_BOOT
     e1000_init();  // 初始化 e1000 网卡
+#endif
 
     buffer_init(); // 初始化高速缓冲
     file_init();   // 初始化文件

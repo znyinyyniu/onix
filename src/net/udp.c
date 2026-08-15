@@ -9,7 +9,6 @@
 #include <onix/debug.h>
 #include <onix/errno.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 static list_t udp_pcb_list;
 static port_map_t map;

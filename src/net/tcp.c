@@ -10,7 +10,6 @@
 #include <onix/assert.h>
 #include <onix/debug.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 extern list_t tcp_pcb_active_list;   // 活动 pcb 列表
 extern list_t tcp_pcb_listen_list;   // 监听 pcb 列表

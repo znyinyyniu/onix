@@ -8,7 +8,6 @@
 #include <onix/errno.h>
 #include <onix/syscall.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 extern task_t *task_table[TASK_NR]; // 任务表
 static tty_t typewriter;

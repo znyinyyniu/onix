@@ -4,7 +4,6 @@
 #include <onix/assert.h>
 #include <onix/debug.h>
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 handler_t syscall_table[SYSCALL_SIZE];
 

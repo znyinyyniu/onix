@@ -15,7 +15,6 @@
 
 #include "minix/minix.h"
 
-#define LOGK(fmt, args...) DEBUGK(fmt, ##args)
 
 #define INODE_NR 64
 
