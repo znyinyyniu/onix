@@ -55,6 +55,43 @@ static u32 free_pages = 0;  // 空闲内存页数
 
 #define used_pages (total_pages - free_pages) // 已用页数
 
+// Multiboot2 Available 区间快照（MBI 可能被 memory_map 覆盖，须提前拷贝）
+#define MAX_AVAIL_RANGES 64
+#define PHYS_4G 0x100000000ULL
+
+typedef struct avail_range_t
+{
+    u32 start;
+    u32 end; // exclusive
+} avail_range_t;
+
+static avail_range_t avail_ranges[MAX_AVAIL_RANGES];
+static u32 avail_range_count = 0;
+static bool avail_ranges_valid = false; // 仅 Multiboot2 路径置 true
+
+static void avail_range_add(u32 start, u32 end)
+{
+    if (start >= end)
+        return;
+    if (avail_range_count >= MAX_AVAIL_RANGES)
+        panic("Too many Multiboot2 available memory ranges\n");
+    avail_ranges[avail_range_count].start = start;
+    avail_ranges[avail_range_count].end = end;
+    avail_range_count++;
+}
+
+static bool page_in_available(u32 addr)
+{
+    if (!avail_ranges_valid)
+        return true;
+    for (u32 i = 0; i < avail_range_count; i++)
+    {
+        if (addr >= avail_ranges[i].start && addr < avail_ranges[i].end)
+            return true;
+    }
+    return false;
+}
+
 void memory_init(u32 magic, u32 addr)
 {
     u32 count = 0;
@@ -80,6 +117,7 @@ void memory_init(u32 magic, u32 addr)
     {
         u32 size = *(unsigned int *)addr;
         multi_tag_t *tag = (multi_tag_t *)(addr + 8);
+        u64 mem_end = MEMORY_BASE;
 
         LOGK("Announced mbi size 0x%x\n", size);
         while (tag->type != MULTIBOOT_TAG_TYPE_END)
@@ -92,18 +130,33 @@ void memory_init(u32 magic, u32 addr)
 
         multi_tag_mmap_t *mtag = (multi_tag_mmap_t *)tag;
         multi_mmap_entry_t *entry = mtag->entries;
+        memory_base = MEMORY_BASE;
+        avail_range_count = 0;
         while ((u32)entry < (u32)tag + tag->size)
         {
             LOGK("Memory base 0x%p size 0x%p type %d\n",
                  (u32)entry->addr, (u32)entry->len, (u32)entry->type);
             count++;
-            if (entry->type == ZONE_VALID && entry->len > memory_size)
+            if (entry->type == MULTIBOOT_MEMORY_AVAILABLE)
             {
-                memory_base = (u32)entry->addr;
-                memory_size = (u32)entry->len;
+                u64 start = entry->addr;
+                u64 end = entry->addr + entry->len;
+                if (end > PHYS_4G)
+                    end = PHYS_4G;
+                if (end > MEMORY_BASE)
+                {
+                    if (end > mem_end)
+                        mem_end = end;
+                    u64 clip_start = start < MEMORY_BASE ? MEMORY_BASE : start;
+                    if (clip_start < end && clip_start < PHYS_4G)
+                        avail_range_add((u32)clip_start, (u32)end);
+                }
             }
             entry = (multi_mmap_entry_t *)((u32)entry + mtag->entry_size);
         }
+        memory_size = (u32)(mem_end - MEMORY_BASE);
+        memory_size &= ~0xfffu; // 页对齐向下
+        avail_ranges_valid = true;
     }
     else
     {
@@ -153,6 +206,21 @@ void memory_map_init()
     for (size_t i = 0; i < start_page; i++)
     {
         memory_map[i] = 1;
+    }
+
+    // Multiboot2：管理范围内非 Available（洞/未覆盖）标为占用
+    if (avail_ranges_valid)
+    {
+        for (size_t i = start_page; i < total_pages; i++)
+        {
+            u32 page = PAGE(i);
+            if (!page_in_available(page) && !memory_map[i])
+            {
+                memory_map[i] = 1;
+                assert(free_pages > 0);
+                free_pages--;
+            }
+        }
     }
 
     LOGK("Total pages %d free pages %d\n", total_pages, free_pages);
