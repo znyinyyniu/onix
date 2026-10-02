@@ -225,3 +225,4 @@ usb-image:
 .PHONY: clean
 clean:
 	rm -rf $(BUILD)/*
+	rm -f $(SRC)/compile_commands.json
