@@ -49,8 +49,13 @@ $(BUILD)/master.vmdk: $(BUILD)/master.img
 vmdk: $(BUILD)/master.vmdk
 
 
-# UEFI U 盘启动（OVMF）
-OVMF:= /usr/share/OVMF/OVMF_CODE.fd
+# UEFI U 盘启动（OVMF）。-bios 要用代码和变量合在一起的镜像。
+# Ubuntu 24.04 起已删除 /usr/share/OVMF/OVMF_CODE.fd 与 OVMF.fd。
+OVMF_CANDIDATES := /usr/share/ovmf/OVMF.fd
+OVMF_CANDIDATES += /usr/share/qemu/OVMF.fd
+OVMF_CANDIDATES += /usr/share/OVMF/OVMF.fd
+OVMF_CANDIDATES += /usr/share/OVMF/OVMF_CODE.fd
+OVMF := $(firstword $(wildcard $(OVMF_CANDIDATES)))
 
 # U 盘 UEFI 冒烟专用：x86_64 QEMU + OVMF（64 位固件），无网卡、无声卡，不依赖 tap0
 QEMU_USB_BASE:= qemu-system-x86_64 -m 256M
@@ -73,10 +78,10 @@ QEMU_USB_XHCI+= -boot order=d
 
 .PHONY: qemu-usb
 qemu-usb: $(BUILD)/onix_usb.img
-	test -f $(OVMF) || test -f /usr/share/OVMF/OVMF.fd || (echo "需要: sudo apt install ovmf" && false)
+	test -n "$(OVMF)" || (echo "需要: sudo apt install ovmf" && false)
 	$(QEMU_USB)
 
 .PHONY: qemu-usb-xhci
 qemu-usb-xhci: usb-image
-	test -f $(OVMF) || test -f /usr/share/OVMF/OVMF.fd || (echo "需要: sudo apt install ovmf" && false)
+	test -n "$(OVMF)" || (echo "需要: sudo apt install ovmf" && false)
 	$(QEMU_USB_XHCI)
