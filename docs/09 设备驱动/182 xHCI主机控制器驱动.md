@@ -37,3 +37,19 @@ USB主机控制器 → USB Hub → USB功能设备，共同构成USB树形拓扑
     - Ring 是驱动和 xHCI 控制器共用的一块环形 TRB 队列。TRB是这条队列里的工作单元，固定 16 字节，驱动和控制器不靠中断传命令本身，而是把 TRB 放进对方能 DMA 读写的内存，再用门铃寄存器喊一声“有新活”。
     - DMA：DMA（Direct Memory Access，直接内存访问）：让外设（这里是 xHCI 控制器）不经过 CPU 逐字节搬运，直接读写系统内存的一种机制。在 xHCI 里，Command Ring、Event Ring、TRB、数据缓冲区都在内存中，xHCI 控制器通过 DMA 自己去读命令、写事件、搬数据，CPU 只负责准备内存、按门铃和收中断。
     - Doorbell（门铃）机制：xHCI 中驱动通知控制器“有新任务”的寄存器写操作。驱动把 TRB 放进 Ring 后，不是等控制器轮询，而是写对应的 Doorbell 寄存器“按一下门铃”，控制器收到后就会通过 DMA 去读 Ring，取走并执行新的 TRB。
+4. 枚举USB设备
+    ``` c
+    // --- Device Context：每个 slot 的硬件上下文与端点 Transfer Ring ---
+    u8 *input_ctx;                              // 提交 Address/Configure 命令用的 Input Context
+    u32 *dcbaap;                                // Device Context Base Address Array
+    u8 *dev_ctx[XHCI_MAX_SLOTS + 1];            // 各 slot 的 Device Context（含 Endpoint Context）
+    xhci_trb_t *ep_rings[XHCI_MAX_SLOTS + 1][32]; // 各 slot 各端点的 Transfer Ring
+    u32 ep_enqueue[XHCI_MAX_SLOTS + 1][32];   // Transfer Ring 写指针
+    bool ep_cycle[XHCI_MAX_SLOTS + 1][32];      // Transfer Ring 当前 cycle bit
+    ```
+
+    - struct xhci_device_t
+    - struct usb_device_desc_t
+    - struct usb_config_desc_t
+    - struct usb_interface_desc_t
+    - struct usb_endpoint_desc_t
