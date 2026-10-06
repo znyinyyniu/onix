@@ -38,15 +38,20 @@ USB主机控制器 → USB Hub → USB功能设备，共同构成USB树形拓扑
     - DMA：DMA（Direct Memory Access，直接内存访问）：让外设（这里是 xHCI 控制器）不经过 CPU 逐字节搬运，直接读写系统内存的一种机制。在 xHCI 里，Command Ring、Event Ring、TRB、数据缓冲区都在内存中，xHCI 控制器通过 DMA 自己去读命令、写事件、搬数据，CPU 只负责准备内存、按门铃和收中断。
     - Doorbell（门铃）机制：xHCI 中驱动通知控制器“有新任务”的寄存器写操作。驱动把 TRB 放进 Ring 后，不是等控制器轮询，而是写对应的 Doorbell 寄存器“按一下门铃”，控制器收到后就会通过 DMA 去读 Ring，取走并执行新的 TRB。
 4. 枚举USB设备
-    ``` c
-    // --- Device Context：每个 slot 的硬件上下文与端点 Transfer Ring ---
-    u8 *input_ctx;                              // 提交 Address/Configure 命令用的 Input Context
-    u32 *dcbaap;                                // Device Context Base Address Array
-    u8 *dev_ctx[XHCI_MAX_SLOTS + 1];            // 各 slot 的 Device Context（含 Endpoint Context）
-    xhci_trb_t *ep_rings[XHCI_MAX_SLOTS + 1][32]; // 各 slot 各端点的 Transfer Ring
-    u32 ep_enqueue[XHCI_MAX_SLOTS + 1][32];   // Transfer Ring 写指针
-    bool ep_cycle[XHCI_MAX_SLOTS + 1][32];      // Transfer Ring 当前 cycle bit
+    过程如下：
+    ``` txt
+    1. 端口上电
+    2. xhci_port_reset
+    3. xhci_cmd_enable_slot
+    4. 为hc->dev_ctx[slot]分配内存：hc->dev_ctx[slot] 是某个槽位的 Device Context（输出上下文）。Enable Slot 成功后，驱动为这个槽位分配一页并清零，之后由控制器读写。它按 ctx_size（32 或 64 字节）排成一段：第 0 段是 Slot Context：速率、根端口号、已启用的上下文个数、USB 地址、槽位状态。后面每段是一个 Endpoint Context：端点类型、最大包长、Transfer Ring 的出队指针。控制器发传输时读的是这份档案，不会直接看驱动临时填的申请内容。
+    5. 对hc->dcbaap[slot]进行赋值：下标（1..max_slots）存放该槽位dev_ctx的物理地址
+    6. xhci_init_ep_ring
+    7. 为hc->input_ctx填写内容：hc->input_ctx 是 Input Context，只给 Address Device 和 Configure Endpoint 用。命令 TRB 的地址字段指向它的物理地址，控制器读完就按其中的标志，把选中的 Slot / Endpoint Context 合并进对应的 dev_ctx。
     ```
+
+    input_ctx、dcbaap、dev_ctx三者如何协同工作：
+    ![input_ctx、dcbaap、dev_ctx三者协同工作](images/USB_xHCI_input_ctx-dcbaap-dev_ctx.png)
+
 
     - struct xhci_device_t
     - struct usb_device_desc_t
