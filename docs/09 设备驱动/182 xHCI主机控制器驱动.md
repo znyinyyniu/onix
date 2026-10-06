@@ -45,16 +45,52 @@ USB主机控制器 → USB Hub → USB功能设备，共同构成USB树形拓扑
     3. xhci_cmd_enable_slot
     4. 为hc->dev_ctx[slot]分配内存：hc->dev_ctx[slot] 是某个槽位的 Device Context（输出上下文）。Enable Slot 成功后，驱动为这个槽位分配一页并清零，之后由控制器读写。它按 ctx_size（32 或 64 字节）排成一段：第 0 段是 Slot Context：速率、根端口号、已启用的上下文个数、USB 地址、槽位状态。后面每段是一个 Endpoint Context：端点类型、最大包长、Transfer Ring 的出队指针。控制器发传输时读的是这份档案，不会直接看驱动临时填的申请内容。
     5. 对hc->dcbaap[slot]进行赋值：下标（1..max_slots）存放该槽位dev_ctx的物理地址
-    6. xhci_init_ep_ring
+    6. xhci_init_ep_ring(hc, slot, 1)：为刚启用的槽位分配默认控制端点（端点 0）的 Transfer Ring。
     7. 为hc->input_ctx填写内容：hc->input_ctx 是 Input Context，只给 Address Device 和 Configure Endpoint 用。命令 TRB 的地址字段指向它的物理地址，控制器读完就按其中的标志，把选中的 Slot / Endpoint Context 合并进对应的 dev_ctx。
+    8. xhci_cmd_address_device：向 xHCI 控制器发出 Address Device 命令，让端口上刚启用的设备从“已占槽位”进入“已分配 USB 地址”，之后驱动才能用端点 0 做控制传输。
+    9. 获取usb_device_desc_t、usb_config_desc_t、usb_interface_desc_t、usb_endpoint_desc_t，并初始化xhci_device_t
+    10. xhci_init_ep_ring(hc, slot, ep_in_id)：为设备的输入端点初始化Transfer Ring
+    11. xhci_init_ep_ring(hc, slot, ep_out_id)：为设备的输出端点初始化Transfer Ring
+    12. xhci_cmd_configure_ep：向 xHCI 控制器发出 Configure Endpoint 命令，把刚准备好的批量 IN/OUT 端点写进该槽位的设备上下文。
+    13. xhci_set_configuration：通过端点 0 向 USB 设备发出标准请求 SET_CONFIGURATION，让设备启用配置描述符里的那套配置。
     ```
 
-    input_ctx、dcbaap、dev_ctx三者如何协同工作：
-    ![input_ctx、dcbaap、dev_ctx三者协同工作](images/USB_xHCI_input_ctx-dcbaap-dev_ctx.png)
+    **input_ctx、dcbaap、dev_ctx三者如何协同工作**
+    ``` txt
+    驱动填写 input_ctx
+            |
+            | Address Device / Configure Endpoint
+            | （TRB 指向 input_ctx 的物理地址）
+            v
+    控制器用槽位号查 dcbaap[slot]
+            |
+            v
+    把选中的上下文写入 dev_ctx[slot]
+            |
+            v
+    之后的传输按 dev_ctx 里的端点上下文去跑 Transfer Ring
+    ```
+
+    **usb_device_desc、usb_config_desc、usb_interface_desc、usb_endpoint_desc四种描述符**
+
+    这四种描述符是 USB 设备自己上报的嵌套说明，从整机到单条传输通道逐层变细。设备描述符单独读取；配置、接口、端点三种则连在同一块配置描述符缓冲区里，驱动按每段开头的长度和类型往下拆。
+
+    ``` txt
+    usb_device_desc_t          一台设备
+        └── usb_config_desc_t    一种工作配置（可有多个，枚举时启用其中一个）
+                └── usb_interface_desc_t   配置里的一项功能
+                    └── usb_endpoint_desc_t   这项功能使用的一条端点
+    ```
+
+    - 设备描述符描述整台设备：USB 版本、厂商号、产品号、端点 0 最大包长，以及有几套配置（num_configs）。驱动先读前 8 字节，用其中的 max_packet 校正 ep0_mps。它不包含接口和端点的细节。
+    - 配置描述符描述一套可被 SET_CONFIGURATION 启用的配置。config_value 就是后来写入 SET_CONFIGURATION 的值，num_interfaces 是这套配置包含的接口数，total_len 是整块缓冲区的长度。驱动先读 9 字节拿到 total_len，再把配置、接口、端点一次读回来。
+    - 接口描述符描述配置中的一项功能。class、subclass、protocol 说明这项功能是什么，endpoints 说明它带几个端点。驱动用这三个字段识别 Bulk-Only 大容量存储：类 0x08、子类 0x06、协议 0x50。
+    - 端点描述符描述接口下的一条传输通道（端点 0 不出现在这里）。addr 是端点号加方向位，attr 的低 2 位是传输类型（批量是 2），max_packet 是最大包长。驱动从中取出批量 IN/OUT，填进 xhci_device_t 的 ep_in、ep_out 和对应的最大包长，供后面建 Transfer Ring 和发批量传输。
+
+# 结果展示
+
+执行`make qemu-usb-xhci`，使用qemu模拟`xhci与usb-storage`，应看到如下图的串口日志输出
+![xHCI主机控制器驱动](images/USB_xHCI_driver.png)
 
 
-    - struct xhci_device_t
-    - struct usb_device_desc_t
-    - struct usb_config_desc_t
-    - struct usb_interface_desc_t
-    - struct usb_endpoint_desc_t
+源代码位置：https://github.com/znyinyyniu/onix

@@ -12,18 +12,19 @@
 #define USB_SUBCLASS_SCSI 0x06
 #define USB_PROTO_BOT 0x50
 
+// 已枚举的 USB 设备
 typedef struct xhci_device_t
 {
-    u8 slot;
-    u8 address;
-    u8 port;
-    u8 speed;
-    u16 ep0_mps;
-    u8 ep_in;
-    u8 ep_out;
-    u16 ep_in_mps;
-    u16 ep_out_mps;
-    bool mass_storage;
+    u8 slot;           // xHCI 槽位号，Enable Slot 分配，用于索引上下文和门铃
+    u8 address;        // USB 设备地址，Address Device 后由控制器分配
+    u8 port;           // 根集线器端口号（从 1 起）
+    u8 speed;          // 端口速率：1 Full、2 Low、3 High、4 Super
+    u16 ep0_mps;       // 端点 0 最大包长
+    u8 ep_in;          // 批量 IN 端点地址（含方向位）
+    u8 ep_out;         // 批量 OUT 端点地址
+    u16 ep_in_mps;     // 批量 IN 端点最大包长
+    u16 ep_out_mps;    // 批量 OUT 端点最大包长
+    bool mass_storage; // 是否为 Bulk-Only 大容量存储设备
 } xhci_device_t;
 
 typedef struct usb_setup_t

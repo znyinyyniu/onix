@@ -54,7 +54,7 @@ void debugk(char *file, int line, const char *fmt, ...);
 // 普通构建退化为 LOGK，零影响。
 #ifdef ONIX_USB_BOOT
 int printk(const char *fmt, ...);
-#define USBLOG(fmt, args...) printk(fmt, ##args)
+#define USBLOG(fmt, args...) LOGK(fmt, ##args)
 #else
 #define USBLOG(fmt, args...) LOGK(fmt, ##args)
 #endif
