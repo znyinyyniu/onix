@@ -48,4 +48,4 @@
 ![qemu-usb启动菜单](images/qemu-usb启动菜单.png)
 
 
-源代码位置：https://github.com/znyinyyniu/onix
+源码位置：https://github.com/znyinyyniu/onix/tree/usb-explain

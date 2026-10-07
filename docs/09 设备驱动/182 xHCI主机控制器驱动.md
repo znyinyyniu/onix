@@ -96,4 +96,4 @@ USB主机控制器 → USB Hub → USB功能设备，共同构成USB树形拓扑
 ![xHCI主机控制器驱动](images/USB_xHCI_driver.png)
 
 
-源代码位置：https://github.com/znyinyyniu/onix
+源码位置：https://github.com/znyinyyniu/onix/tree/usb-explain
