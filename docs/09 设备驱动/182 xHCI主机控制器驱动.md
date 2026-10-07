@@ -1,8 +1,11 @@
 # 一些准备
 
 1. 日志按级别打印，灵活控制日志输出
-2. 新增USBLOG函数，便于将 USB 引导期里程碑日志在 USB 启动构建下直接走 printk（经帧缓冲上屏，不受 ONIX_LOG_LEVEL 裁剪，便于实体机无串口时定位失败阶段）
-3. memory_init 兼容UEFI mmap
+2. memory_init 兼容UEFI mmap
+    - 先前实现按「最长 AVAILABLE」选型，UEFI 内存图中最大块从 9MiB 起，与 Onix「可用物理内存从 1MiB 起」的模型冲突。
+    - Multiboot2 路径下改为：固定 `memory_base = MEMORY_BASE`（1MiB），用 mmap 中 AVAILABLE 区域的最高结尾地址推导 `memory_size`
+    - 在建立物理页占用表时，将管理范围内非 AVAILABLE（及未被 AVAILABLE 覆盖）的页标记为已占用，避免把 NVS/RESERVED 洞当作可分配内存
+    - 保持现有 `total_pages` / `start_page` / `memory_map` 放在 1MiB 的模型与 assert；不改为「沿用 base=9MiB」
 
 # USB硬件拓扑图
 
