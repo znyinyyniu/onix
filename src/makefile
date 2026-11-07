@@ -152,6 +152,7 @@ $(BUILD)/kernel.raw.bin: \
 	$(BUILD)/kernel/test.o \
 	$(BUILD)/kernel/e1000.o \
 	$(BUILD)/kernel/xhci.o \
+	$(BUILD)/kernel/usb_storage.o \
 	$(BUILD)/net/pbuf.o \
 	$(BUILD)/net/chksum.o \
 	$(BUILD)/net/netif.o \

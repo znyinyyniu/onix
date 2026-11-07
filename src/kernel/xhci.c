@@ -940,6 +940,48 @@ static void xhci_init_rings(xhci_t *hc)
     moutl(xhci_op(hc, 0x38), hc->max_slots);
 }
 
+static err_t xhci_do_bulk(xhci_t *hc, xhci_device_t *dev, u8 ep_idx, void *buf, u32 len, bool in)
+{
+    xhci_trb_t *trb = xhci_next_xfer(hc, dev->slot, ep_idx);
+    memset(trb, 0, sizeof(*trb));
+    trb->control = trb_type(TRB_CYCLE | TRB_IOC, TRB_TYPE_NORMAL);
+    if (hc->ep_cycle[dev->slot][ep_idx])
+        trb->control |= TRB_CYCLE;
+    if (in)
+        trb->control |= TRB_DIR_IN;
+    trb->status = TRB_LEN(len);
+    trb_set_addr(trb, get_paddr((u32)buf));
+    u32 trb_idx = hc->ep_enqueue[dev->slot][ep_idx] - 1;
+    bool cycle = (trb->control & TRB_CYCLE) != 0;
+    xhci_set_ep_dequeue(hc, dev->slot, ep_idx, trb_idx, cycle);
+    xhci_post_xfer(hc, dev->slot, ep_idx);
+    return xhci_wait_event(hc, TRB_TYPE_EVT_TRANSFER, NULL, NULL, 30000);
+}
+
+err_t xhci_bulk_in(xhci_device_t *dev, void *buf, u32 len)
+{
+    u8 ep_idx = xhci_ep_id(dev->ep_in);
+    return xhci_do_bulk(&xhci, dev, ep_idx, buf, len, true);
+}
+
+err_t xhci_bulk_out(xhci_device_t *dev, void *buf, u32 len)
+{
+    u8 ep_idx = xhci_ep_id(dev->ep_out);
+    return xhci_do_bulk(&xhci, dev, ep_idx, buf, len, false);
+}
+
+int xhci_device_count(void)
+{
+    return xhci.device_count;
+}
+
+xhci_device_t *xhci_get_device(int idx)
+{
+    if (idx < 0 || idx >= xhci.device_count)
+        return NULL;
+    return &xhci.devices[idx];
+}
+
 void xhci_init(void)
 {
     // 1. 找到xHCI controller
@@ -1018,3 +1060,5 @@ void xhci_init(void)
 
     LOGK("xHCI init done, %d device(s)\n", hc->device_count);
 }
+
+

@@ -51,6 +51,7 @@ extern void sb16_init();
 extern void e1000_init();
 #ifdef ONIX_USB_BOOT
 extern void xhci_init();
+extern void usb_storage_init();
 #endif
 
 extern void buffer_init();
@@ -76,6 +77,7 @@ void init_thread()
 
 #ifdef ONIX_USB_BOOT
     xhci_init();
+    usb_storage_init();
 #else
     ide_init(); // 初始化 IDE 设备
 #endif
