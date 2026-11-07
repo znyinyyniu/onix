@@ -4,7 +4,7 @@ magic   equ 0xe85250d6
 i386    equ 0
 length  equ header_end - header_start
 
-section .multiboot2
+section .multiboot2 align=8
 header_start:
     dd magic  ; 魔数
     dd i386   ; 32位保护模式

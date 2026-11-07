@@ -100,7 +100,7 @@ $(BUILD)/builtin/%.out: $(BUILD)/builtin/%.o \
 	
 	ld -m elf_i386 -static $^ -o $@ -Ttext 0x1001000
 
-LDFLAGS:= -m elf_i386 \
+LDFLAGS:= -n -m elf_i386 \
 		-static \
 		-Ttext $(ENTRYPOINT)\
 		--section-start=.multiboot2=$(MULTIBOOT2)
