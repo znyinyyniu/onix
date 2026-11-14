@@ -186,10 +186,10 @@ void usb_storage_init(void)
             continue;
         }
 
-        // usb_gpt_install(disk);
+        usb_gpt_install(disk);
         disk_idx++;
     }
 
-    // usb_install();
+    usb_install();
     USBLOG("USB storage init done, %d disk(s)\n", disk_idx);
 }

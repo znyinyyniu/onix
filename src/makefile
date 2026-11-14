@@ -151,6 +151,8 @@ $(BUILD)/kernel.raw.bin: \
 	$(BUILD)/kernel/fpu.o \
 	$(BUILD)/kernel/test.o \
 	$(BUILD)/kernel/e1000.o \
+	$(BUILD)/kernel/gpt.o \
+	$(BUILD)/kernel/usb.o \
 	$(BUILD)/kernel/xhci.o \
 	$(BUILD)/kernel/usb_storage.o \
 	$(BUILD)/net/pbuf.o \
