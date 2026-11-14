@@ -51,12 +51,17 @@ static serial_t serials[2];
 
 void recv_data(serial_t *serial)
 {
-    char ch = inb(serial->iobase);
-    if (ch == '\r') // 特殊处理，回车键直接换行
+    // 一次中断/轮询可能积了多个字节，全部抽干
+    while (inb(serial->iobase + COM_LINE_STATUS) & LSR_DR)
     {
-        ch = '\n';
+        char ch = inb(serial->iobase);
+        if (ch == '\r') // 特殊处理，回车键直接换行
+        {
+            ch = '\n';
+        }
+        if (!fifo_full(&serial->rx_fifo))
+            fifo_put(&serial->rx_fifo, ch);
     }
-    fifo_put(&serial->rx_fifo, ch);
     if (serial->rx_waiter != NULL)
     {
         task_unblock(serial->rx_waiter, EOK);
@@ -95,9 +100,20 @@ int serial_read(serial_t *serial, char *buf, u32 count)
     {
         while (fifo_empty(&serial->rx_fifo))
         {
-            assert(serial->rx_waiter == NULL);
-            serial->rx_waiter = running_task();
-            task_block(serial->rx_waiter, NULL, TASK_BLOCKED, TIMELESS);
+            // 与 write 对称：轮询 LSR。FIFO 触发电平过高或 IRQ 未到时，
+            // 只靠中断 + TIMELESS block 会让 shell 永远读不到单字符。
+            bool intr = interrupt_disable();
+            if (inb(serial->iobase + COM_LINE_STATUS) & LSR_DR)
+            {
+                recv_data(serial);
+                set_interrupt_state(intr);
+                continue;
+            }
+            set_interrupt_state(intr);
+
+            lock_release(&serial->rlock);
+            task_sleep(10);
+            lock_acquire(&serial->rlock);
         }
         buf[nr++] = fifo_get(&serial->rx_fifo);
     }
@@ -163,8 +179,8 @@ void serial_init()
         // 复位 DLAB 位，数据位为 8 位
         outb(serial->iobase + COM_LINE_CONTROL, 0x03);
 
-        // 启用 FIFO, 清空 FIFO, 14 字节触发电平
-        outb(serial->iobase + COM_INTR_IDENTIFY, 0xC7);
+        // 启用 FIFO, 清空 FIFO, 1 字节触发电平（交互输入多为单字符）
+        outb(serial->iobase + COM_INTR_IDENTIFY, 0x07);
 
         // 设置回环模式，测试串口芯片
         outb(serial->iobase + COM_MODEM_CONTROL, 0b11011);

@@ -102,13 +102,21 @@ int sys_gtty()
     return -ENOSYS;
 }
 
-// 初始化串口
+// 初始化 TTY
 void tty_init()
 {
     device_t *device = NULL;
 
     tty_t *tty = &typewriter;
 
+#ifdef ONIX_USB_BOOT
+    // UEFI/GOP 下 0xB8000 文本控制台不可见；USB 冒烟把 shell 绑到串口，
+    // 与 qemu -serial stdio / 实体机 UART 一致，输入输出都在同一终端。
+    device = device_find(DEV_SERIAL, 0);
+    assert(device);
+    tty->rdev = device->dev;
+    tty->wdev = device->dev;
+#else
     // 输入设备是键盘
     device = device_find(DEV_KEYBOARD, 0);
     tty->rdev = device->dev;
@@ -116,6 +124,7 @@ void tty_init()
     // 输出设备是控制台
     device = device_find(DEV_CONSOLE, 0);
     tty->wdev = device->dev;
+#endif
 
     device_install(DEV_CHAR, DEV_TTY, tty, "tty", 0, tty_ioctl, tty_read, tty_write);
 }
