@@ -1,5 +1,4 @@
 GRUB_EFI_DIR:= /usr/lib/grub/x86_64-efi
-USB_LOOP:= $(shell sudo losetup --find 2>/dev/null)
 USB_ESP_MNT:= /tmp/onix-usb-esp
 USB_ROOT_MNT:= /tmp/onix-usb-root
 USB_IMG_SIZE:= 256M
@@ -21,7 +20,12 @@ check-usb-host-deps:
 	@echo "USB 镜像宿主依赖检查通过"
 
 $(BUILD)/onix_usb.img: $(BUILD)/kernel.bin \
-	$(SRC)/utils/grub-uefi.cfg
+	$(SRC)/utils/grub-uefi.cfg \
+	$(SRC)/utils/network.conf \
+	$(SRC)/utils/resolv.conf \
+	$(BUILTIN_APPS) \
+	$(BUILD)/mono.wav \
+	$(BUILD)/stereo.wav
 
 	$(MAKE) check-usb-host-deps
 
@@ -32,24 +36,48 @@ $(BUILD)/onix_usb.img: $(BUILD)/kernel.bin \
 	parted -s $@ set 1 esp on
 	parted -s $@ mkpart primary $(USB_ESP_END) 100%
 
-	sudo losetup $(USB_LOOP) --partscan $@
-	sudo mkfs.vfat -F 16 -n ONIXESP $(USB_LOOP)p1
-	sudo mkfs.minix -1 -n 14 $(USB_LOOP)p2
-
-	sudo mkdir -p $(USB_ESP_MNT)
-	sudo mount $(USB_LOOP)p1 $(USB_ESP_MNT)
-	sudo mkdir -p $(USB_ESP_MNT)/boot/grub
-
+	USB_LOOP=$$(sudo losetup --find); \
+	sudo losetup $$USB_LOOP --partscan $@; \
+	sudo mkfs.vfat -F 16 -n ONIXESP $${USB_LOOP}p1; \
+	sudo mkfs.minix -1 -n 14 $${USB_LOOP}p2; \
+	\
+	sudo mkdir -p $(USB_ESP_MNT); \
+	sudo mount $${USB_LOOP}p1 $(USB_ESP_MNT); \
+	sudo mkdir -p $(USB_ESP_MNT)/boot/grub; \
+	\
 	sudo grub-install --target=x86_64-efi \
 		--efi-directory=$(USB_ESP_MNT) \
 		--boot-directory=$(USB_ESP_MNT)/boot \
 		--removable \
 		--no-nvram \
-		$(USB_LOOP)
-
-	sudo cp $(BUILD)/kernel.bin $(USB_ESP_MNT)/boot/kernel.bin
-	sudo cp $(SRC)/utils/grub-uefi.cfg $(USB_ESP_MNT)/boot/grub/grub.cfg
-
-	sudo umount $(USB_ESP_MNT)
-
-	sudo losetup -d $(USB_LOOP)
+		$$USB_LOOP; \
+	\
+	sudo cp $(BUILD)/kernel.bin $(USB_ESP_MNT)/boot/kernel.bin; \
+	sudo cp $(SRC)/utils/grub-uefi.cfg $(USB_ESP_MNT)/boot/grub/grub.cfg; \
+	\
+	sudo umount $(USB_ESP_MNT); \
+	\
+	sudo mkdir -p $(USB_ROOT_MNT); \
+	sudo mount $${USB_LOOP}p2 $(USB_ROOT_MNT); \
+	sudo chown ${USER} $(USB_ROOT_MNT); \
+	\
+	mkdir -p $(USB_ROOT_MNT)/bin; \
+	mkdir -p $(USB_ROOT_MNT)/dev; \
+	mkdir -p $(USB_ROOT_MNT)/etc; \
+	mkdir -p $(USB_ROOT_MNT)/mnt; \
+	mkdir -p $(USB_ROOT_MNT)/data; \
+	\
+	cp $(SRC)/utils/network.conf $(USB_ROOT_MNT)/etc; \
+	cp $(SRC)/utils/resolv.conf $(USB_ROOT_MNT)/etc; \
+	cp $(BUILD)/mono.wav $(USB_ROOT_MNT)/data; \
+	cp $(BUILD)/stereo.wav $(USB_ROOT_MNT)/data; \
+	\
+	for app in $(BUILTIN_APPS); \
+	do \
+		cp $$app $(USB_ROOT_MNT)/bin; \
+	done; \
+	\
+	echo "hello onix!!!" > $(USB_ROOT_MNT)/hello.txt; \
+	\
+	sudo umount $(USB_ROOT_MNT); \
+	sudo losetup -d $$USB_LOOP
